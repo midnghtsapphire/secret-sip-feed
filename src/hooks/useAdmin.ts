@@ -17,16 +17,20 @@ export const useAdmin = () => {
       }
 
       try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .single();
+        // Use rpc call to check admin status since user_roles table types aren't updated yet
+        const { data, error } = await supabase.rpc('has_role', {
+          _user_id: user.id,
+          _role: 'admin'
+        });
 
-        setIsAdmin(!!data);
+        if (error) {
+          console.log('Error checking admin status:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(data || false);
+        }
       } catch (error) {
-        console.log('User is not an admin');
+        console.log('User is not an admin:', error);
         setIsAdmin(false);
       } finally {
         setLoading(false);
