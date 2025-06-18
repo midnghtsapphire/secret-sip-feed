@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       difficulty_level: initialData?.difficulty_level || 1,
       prep_time_minutes: initialData?.prep_time_minutes || 5,
       tags: initialData?.tags?.join(', ') || '',
-      is_public: initialData?.is_public || false,
+      is_public: initialData?.is_public !== undefined ? initialData.is_public : true, // Default to public
     },
   });
 
@@ -73,24 +74,54 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   };
 
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
-    // Populate form with extracted data
-    form.setValue('name', extractedRecipe.name);
-    form.setValue('description', extractedRecipe.description);
-    form.setValue('category', extractedRecipe.category);
-    form.setValue('image_url', extractedRecipe.imageUrl);
+    console.log('Extracted recipe data:', extractedRecipe);
     
-    if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions)) {
-      form.setValue('instructions', extractedRecipe.instructions.join('\n\n'));
+    // Populate form with extracted data
+    if (extractedRecipe.name) {
+      form.setValue('name', extractedRecipe.name);
+    }
+    if (extractedRecipe.description) {
+      form.setValue('description', extractedRecipe.description);
+    }
+    if (extractedRecipe.category) {
+      form.setValue('category', extractedRecipe.category);
+    }
+    if (extractedRecipe.imageUrl) {
+      form.setValue('image_url', extractedRecipe.imageUrl);
     }
     
-    if (extractedRecipe.tags && Array.isArray(extractedRecipe.tags)) {
-      form.setValue('tags', extractedRecipe.tags.join(', '));
+    // Handle instructions - join array or use as string
+    if (extractedRecipe.instructions) {
+      if (Array.isArray(extractedRecipe.instructions)) {
+        const instructionsText = extractedRecipe.instructions
+          .filter(instruction => instruction && instruction.trim())
+          .join('\n\n');
+        form.setValue('instructions', instructionsText);
+      } else if (typeof extractedRecipe.instructions === 'string') {
+        form.setValue('instructions', extractedRecipe.instructions);
+      }
+    }
+    
+    // Handle tags - join array or use as string
+    if (extractedRecipe.tags) {
+      if (Array.isArray(extractedRecipe.tags)) {
+        form.setValue('tags', extractedRecipe.tags.join(', '));
+      } else if (typeof extractedRecipe.tags === 'string') {
+        form.setValue('tags', extractedRecipe.tags);
+      }
     }
 
-    // Add source tag
+    // Add source tag to track where it came from
     const currentTags = form.getValues('tags');
-    const sourceTag = `ImportedFrom${extractedRecipe.source}`;
-    form.setValue('tags', currentTags ? `${currentTags}, ${sourceTag}` : sourceTag);
+    const sourceTag = `ImportedFrom${extractedRecipe.source || 'SocialMedia'}`;
+    const allTags = currentTags ? `${currentTags}, ${sourceTag}` : sourceTag;
+    form.setValue('tags', allTags);
+
+    // Set estimated pricing and difficulty based on ingredients count
+    if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients)) {
+      const estimatedPrice = Math.max(4.50, extractedRecipe.ingredients.length * 0.75);
+      form.setValue('base_price', estimatedPrice);
+    }
 
     setShowSocialExtractor(false);
   };
@@ -101,6 +132,8 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
       base_price: parseFloat(data.base_price) || 0,
     };
+    
+    console.log('Submitting recipe data:', recipeData);
     onSubmit(recipeData);
   };
 
@@ -239,7 +272,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
               <FormItem>
                 <FormLabel>Instructions</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Step by step instructions..." {...field} />
+                  <Textarea 
+                    placeholder="Step by step instructions..." 
+                    className="min-h-[120px]"
+                    {...field} 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -298,7 +335,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
               className="rounded"
             />
             <label htmlFor="is_public" className="text-sm font-medium">
-              Make this recipe public
+              Make this recipe public (recommended - share with the community!)
             </label>
           </div>
 

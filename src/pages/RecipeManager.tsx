@@ -8,6 +8,7 @@ import { useRecipes } from '@/hooks/useRecipes';
 import { useMenuItems } from '@/hooks/useMenuItems';
 import RecipeForm from '@/components/RecipeForm';
 import MenuItemForm from '@/components/MenuItemForm';
+import RecipePrivacyToggle from '@/components/RecipePrivacyToggle';
 import Header from '@/components/Header';
 
 const RecipeManager: React.FC = () => {
@@ -74,6 +75,10 @@ const RecipeManager: React.FC = () => {
     if (confirm('Are you sure you want to delete this recipe?')) {
       deleteRecipe.mutate(id);
     }
+  };
+
+  const handlePrivacyToggle = (recipeId: string, isPublic: boolean) => {
+    updateRecipe.mutate({ id: recipeId, is_public: isPublic });
   };
 
   const handleCreateMenuItem = (data: any) => {
@@ -147,7 +152,7 @@ const RecipeManager: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* My Recipes */}
           <div className="lg:col-span-2">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">My Recipes</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">All Recipes</h2>
             
             {isLoading ? (
               <div className="text-center py-8">
@@ -168,9 +173,21 @@ const RecipeManager: React.FC = () => {
                     <h3 className="font-bold text-gray-800 mb-2">{recipe.name}</h3>
                     <p className="text-sm text-gray-600 mb-2 line-clamp-2">{recipe.description}</p>
                     
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full">
                         {recipe.category}
+                      </span>
+                      
+                      <RecipePrivacyToggle
+                        isPublic={recipe.is_public || false}
+                        onToggle={(isPublic) => handlePrivacyToggle(recipe.id, isPublic)}
+                        recipeId={recipe.id}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">
+                        ${recipe.base_price?.toFixed(2) || '0.00'}
                       </span>
                       
                       <div className="flex space-x-2">
