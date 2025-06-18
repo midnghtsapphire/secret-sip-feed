@@ -50,9 +50,10 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
       <div className="relative">
         <img 
           src={imageUrl} 
-          alt={`${name} - Starbucks recipe`}
+          alt={`${name} - ${category} Starbucks recipe drink with ${tags.slice(0, 2).join(' and ')} ingredients`}
           className="w-full h-32 object-cover"
           loading="lazy"
+          title={`${name} - ${description}`}
         />
         {isTrending && (
           <div className="absolute top-2 left-2 bg-gradient-to-r from-orange-400 to-red-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center">
@@ -68,7 +69,7 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
         <button
           onClick={handleFavoriteClick}
           className="absolute bottom-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all"
-          aria-label={isInFavorites ? 'Remove from favorites' : 'Add to favorites'}
+          aria-label={isInFavorites ? `Remove ${name} from favorites` : `Add ${name} to favorites`}
         >
           <Heart 
             size={14} 

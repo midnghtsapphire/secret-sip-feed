@@ -100,8 +100,9 @@ const DrinkDetail = () => {
             <div className="md:w-1/2">
               <img
                 src={drink.imageUrl}
-                alt={drink.name}
+                alt={`${drink.name} - ${drink.category} Starbucks recipe showing ${drink.description}`}
                 className="w-full h-64 md:h-full object-cover"
+                title={`${drink.name} - Complete recipe and ingredients`}
               />
             </div>
             
@@ -111,6 +112,7 @@ const DrinkDetail = () => {
                 <button
                   onClick={handleFavoriteClick}
                   className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-all"
+                  aria-label={isInFavorites ? `Remove ${drink.name} from favorites` : `Add ${drink.name} to favorites`}
                 >
                   <Heart
                     size={24}

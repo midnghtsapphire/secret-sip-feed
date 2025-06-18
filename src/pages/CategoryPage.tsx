@@ -43,12 +43,17 @@ const CategoryPage = () => {
     'Foam Experts': 'Drinks featuring amazing cold foam art and techniques.'
   };
 
+  const categoryImage = filteredDrinks.length > 0 ? 
+    filteredDrinks[0].imageUrl : 
+    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1200&h=630&fit=crop';
+
   const structuredData = {
     "@context": "https://schema.org/",
     "@type": "CollectionPage",
     "name": `${decodedCategory} Starbucks Recipes`,
     "description": categoryDescriptions[decodedCategory] || `Discover amazing ${decodedCategory} recipes and drinks.`,
     "url": `https://secret-sips.lovable.app/category/${encodeURIComponent(decodedCategory)}`,
+    "image": categoryImage,
     "mainEntity": {
       "@type": "ItemList",
       "numberOfItems": filteredDrinks.length,
@@ -67,6 +72,7 @@ const CategoryPage = () => {
       <SEOHead
         title={`${decodedCategory} Recipes - Secret Sips`}
         description={categoryDescriptions[decodedCategory] || `Discover amazing ${decodedCategory} Starbucks recipes and secret menu drinks.`}
+        image={categoryImage}
         url={`https://secret-sips.lovable.app/category/${encodeURIComponent(decodedCategory)}`}
         structuredData={structuredData}
       />

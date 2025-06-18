@@ -34,18 +34,25 @@ const SEOHead: React.FC<SEOHeadProps> = ({
       <meta property="og:url" content={url} />
       <meta property="og:type" content={type} />
       <meta property="og:site_name" content="Secret Sips" />
+      <meta property="og:locale" content="en_US" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content={`${title} - Starbucks recipe preview`} />
 
       {/* Twitter Card Tags */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
+      <meta name="twitter:image:alt" content={`${title} - Starbucks recipe preview`} />
       <meta name="twitter:site" content="@secretsips" />
+      <meta name="twitter:creator" content="@secretsips" />
 
       {/* Additional SEO Tags */}
       <meta name="robots" content="index, follow" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta httpEquiv="Content-Language" content="en" />
+      <meta name="theme-color" content="#ec4899" />
 
       {/* Structured Data */}
       {structuredData && (
