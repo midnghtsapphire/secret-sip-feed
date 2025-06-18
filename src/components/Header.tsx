@@ -32,7 +32,7 @@ const Header: React.FC = () => {
         </div>
 
         {/* Auth Section */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-end">
           {user ? (
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
