@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import CategoryFilter from '../components/CategoryFilter';
@@ -11,11 +10,11 @@ const Index = () => {
   const categories = [
     'All',
     'Viral Today', 
+    'Budget Babe Brews',
     'Pink Drinks',
     'Blue Drinks', 
     'Green Teas',
-    'Foam Experts',
-    'Budget Babe Brews'
+    'Foam Experts'
   ];
 
   const mockDrinks = [
