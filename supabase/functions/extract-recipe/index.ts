@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -71,9 +72,10 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        formats: ['markdown'],
+        formats: ['markdown', 'html'],
         onlyMainContent: true,
-        waitFor: 2000
+        waitFor: 3000,
+        includeTags: ['p', 'div', 'span', 'h1', 'h2', 'h3', 'ul', 'li', 'ol']
       })
     });
 
@@ -174,7 +176,53 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   console.log('Content length:', content.length);
   console.log('HTML length:', html.length);
   console.log('Metadata keys:', Object.keys(metadata));
-  
+  console.log('Raw content sample:', content.substring(0, 500));
+
+  // Helper function to clean and filter content
+  function cleanText(text: string): string {
+    if (!text) return '';
+    
+    return text
+      // Remove URLs completely
+      .replace(/https?:\/\/[^\s\)\]]+/g, '')
+      // Remove CDN and image URLs
+      .replace(/tiktokcdn[^\s\)\]]+/g, '')
+      .replace(/[^\s]*\.(jpg|jpeg|png|gif|webp|svg)[^\s\)\]]*/gi, '')
+      // Remove URL parameters and signatures
+      .replace(/[?&][a-zA-Z0-9_-]+=([^&\s\)\]]*)/g, '')
+      // Remove markdown image syntax
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      // Remove excessive line breaks and whitespace
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\s{3,}/g, ' ')
+      // Remove empty parentheses and brackets
+      .replace(/\(\s*\)/g, '')
+      .replace(/\[\s*\]/g, '')
+      // Clean up common social media artifacts
+      .replace(/@[a-zA-Z0-9_]+/g, '')
+      .replace(/#[a-zA-Z0-9_]+/g, '')
+      .trim();
+  }
+
+  // Extract meaningful text content
+  function extractMeaningfulContent(text: string): string[] {
+    const cleaned = cleanText(text);
+    if (!cleaned) return [];
+    
+    return cleaned
+      .split(/\n+/)
+      .map(line => line.trim())
+      .filter(line => {
+        return line.length > 5 && 
+               !line.includes('tiktokcdn') &&
+               !line.includes('x-expires') &&
+               !line.includes('x-signature') &&
+               !line.match(/^https?:/) &&
+               !line.match(/^\w+\.(jpg|jpeg|png|gif|webp)/i) &&
+               line.length < 200; // Reasonable max length for a line
+      });
+  }
+
   // Extract title/name - prioritize metadata, then content parsing
   let name = metadata.title || metadata.ogTitle || '';
   if (!name && content) {
@@ -183,95 +231,108 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   }
   
   // Clean up the name
+  name = cleanText(name);
   name = name.replace(/\|.*$/, '').replace(/on (TikTok|Instagram|Lemon8)/, '').trim();
-  if (!name) name = 'Imported Recipe';
+  if (!name || name.length < 3) name = 'Imported Social Media Recipe';
 
   // Extract description
   let description = metadata.description || metadata.ogDescription || '';
   if (!description && content) {
-    const lines = content.split('\n').filter(line => line.trim() && !line.startsWith('#'));
-    description = lines.slice(0, 3).join(' ').substring(0, 200);
+    const meaningfulLines = extractMeaningfulContent(content);
+    description = meaningfulLines.slice(0, 2).join(' ').substring(0, 200);
+  }
+  description = cleanText(description);
+  if (!description || description.length < 10) {
+    description = `Delicious ${name.toLowerCase()} recipe imported from social media`;
   }
 
   // Extract image URL
   let imageUrl = '';
-  if (metadata.ogImage) {
+  if (metadata.ogImage && !metadata.ogImage.includes('tiktokcdn')) {
     imageUrl = metadata.ogImage;
-  } else if (metadata.image) {
+  } else if (metadata.image && !metadata.image.includes('tiktokcdn')) {
     imageUrl = metadata.image;
-  } else if (html) {
-    const imgMatch = html.match(/<img[^>]+src="([^"]+)"/);
-    if (imgMatch) imageUrl = imgMatch[1];
   }
 
-  // If no image found, use a default
+  // If no good image found, use a default
   if (!imageUrl) {
     imageUrl = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=300&fit=crop';
   }
 
-  // Parse content for ingredients and instructions
+  // Extract meaningful content lines for ingredients and instructions
+  const meaningfulLines = extractMeaningfulContent(content);
+  console.log('Meaningful lines extracted:', meaningfulLines.length);
+  console.log('Sample meaningful lines:', meaningfulLines.slice(0, 5));
+
+  // Parse ingredients and instructions from meaningful content
   let ingredients: string[] = [];
   let instructions: string[] = [];
   
-  if (content) {
-    // Look for ingredient patterns
-    const ingredientPatterns = [
-      /(?:ingredients?|what you need|order|ask for)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
-      /[-•*]\s*(.+?)(?=\n|$)/g
-    ];
-    
-    for (const pattern of ingredientPatterns) {
-      const matches = content.matchAll(pattern);
-      for (const match of matches) {
-        const ingredient = match[1]?.trim();
-        if (ingredient && ingredient.length > 3 && ingredient.length < 100) {
-          ingredients.push(ingredient);
-        }
-      }
-      // Break after first successful pattern
-      if (ingredients.length > 0) break;
-    }
+  // Look for recipe-related keywords to identify ingredients and instructions
+  const ingredientKeywords = ['ingredient', 'add', 'cup', 'tablespoon', 'teaspoon', 'ounce', 'ml', 'gram', 'oz', 'tsp', 'tbsp'];
+  const instructionKeywords = ['mix', 'stir', 'blend', 'pour', 'serve', 'combine', 'whisk', 'heat', 'cool', 'top', 'order', 'ask for'];
 
-    // Look for instruction patterns
-    const instructionPatterns = [
-      /(?:instructions?|how to|steps?)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
-      /\d+[.)]\s*(.+?)(?=\n|$)/g
-    ];
+  for (const line of meaningfulLines) {
+    const lineLower = line.toLowerCase();
     
-    for (const pattern of instructionPatterns) {
-      const matches = content.matchAll(pattern);
-      for (const match of matches) {
-        const instruction = match[1]?.trim();
-        if (instruction && instruction.length > 5) {
-          instructions.push(instruction);
-        }
+    // Check if line contains ingredient-like content
+    if (ingredientKeywords.some(keyword => lineLower.includes(keyword)) || 
+        line.match(/^\s*[-•*]\s*/) || 
+        line.match(/\d+\s*(cup|oz|ml|gram|tsp|tbsp)/i)) {
+      if (ingredients.length < 10) { // Limit ingredients
+        ingredients.push(line.replace(/^\s*[-•*]\s*/, '').trim());
       }
-      // Break after first successful pattern
-      if (instructions.length > 0) break;
+    }
+    // Check if line contains instruction-like content
+    else if (instructionKeywords.some(keyword => lineLower.includes(keyword)) ||
+             line.match(/^\d+\.\s*/) ||
+             (line.length > 15 && (lineLower.includes('step') || lineLower.includes('first') || lineLower.includes('then')))) {
+      if (instructions.length < 10) { // Limit instructions
+        instructions.push(line.replace(/^\d+\.\s*/, '').trim());
+      }
     }
   }
 
-  // Extract hashtags as tags
+  // If no specific ingredients/instructions found, use fallback approach
+  if (ingredients.length === 0 && instructions.length === 0 && meaningfulLines.length > 0) {
+    // Take first half as potential ingredients, second half as instructions
+    const midPoint = Math.floor(meaningfulLines.length / 2);
+    ingredients = meaningfulLines.slice(0, midPoint).slice(0, 5);
+    instructions = meaningfulLines.slice(midPoint).slice(0, 5);
+  }
+
+  // Create fallback content if extraction failed
+  if (ingredients.length === 0) {
+    ingredients = [`${name} base ingredients`, 'Check original post for complete ingredient list'];
+  }
+  
+  if (instructions.length === 0) {
+    instructions = [
+      'Follow the preparation steps shown in the original post',
+      'Adjust sweetness and ingredients to taste',
+      'Serve immediately for best results'
+    ];
+  }
+
+  // Extract hashtags as tags from meaningful content
   let tags: string[] = [];
-  if (content) {
-    const hashtagMatches = content.matchAll(/#(\w+)/g);
-    for (const match of hashtagMatches) {
-      const tag = match[1];
-      if (tag && !tags.includes(tag) && tags.length < 5) {
-        tags.push(tag);
-      }
+  const hashtagMatches = content.matchAll(/#(\w+)/g);
+  for (const match of hashtagMatches) {
+    const tag = match[1];
+    if (tag && tag.length > 2 && !tags.includes(tag) && tags.length < 5) {
+      tags.push(tag);
     }
   }
 
   // Determine category based on content
   let category = 'Pink Drinks'; // default
-  const contentLower = (name + ' ' + description + ' ' + content).toLowerCase();
+  const contentLower = (name + ' ' + description + ' ' + meaningfulLines.join(' ')).toLowerCase();
   
-  if (contentLower.includes('pink') || contentLower.includes('strawberry')) {
+  if (contentLower.includes('pink') || contentLower.includes('strawberry') || contentLower.includes('raspberry')) {
     category = 'Pink Drinks';
   } else if (contentLower.includes('blue') || contentLower.includes('butterfly')) {
     category = 'Blue Drinks';
-  } else if (contentLower.includes('green') || contentLower.includes('matcha')) {
+  } else if (contentLower.includes('green') || contentLower.includes('matcha') || contentLower.includes('tea')) {
     category = 'Green Teas';
   } else if (contentLower.includes('foam') || contentLower.includes('cold foam')) {
     category = 'Foam Experts';
@@ -287,22 +348,24 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   else if (originalUrl.includes('instagram.com')) source = 'Instagram';
   else if (originalUrl.includes('lemon8')) source = 'Lemon8';
 
-  console.log('Extracted recipe:', { 
+  console.log('Final extracted recipe:', { 
     name, 
     description: description.substring(0, 50), 
     imageUrl: !!imageUrl, 
     ingredientsCount: ingredients.length, 
     instructionsCount: instructions.length,
-    tagsCount: tags.length 
+    tagsCount: tags.length,
+    ingredients: ingredients.slice(0, 3),
+    instructions: instructions.slice(0, 3)
   });
 
   return {
     name,
-    description: description || 'Imported from social media',
+    description,
     imageUrl,
-    ingredients: ingredients.length > 0 ? ingredients : ['Ask for ingredients from the post'],
-    instructions: instructions.length > 0 ? instructions : ['Follow the instructions in the original post'],
-    tags: tags.length > 0 ? tags : ['Imported', 'SocialMedia'],
+    ingredients,
+    instructions,
+    tags: tags.length > 0 ? tags : ['Imported', source],
     category,
     source,
     originalUrl
