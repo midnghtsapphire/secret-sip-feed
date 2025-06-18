@@ -42,38 +42,32 @@ const Auth = () => {
             title: "Welcome back!",
             description: "You've been signed in successfully.",
           });
-          navigate('/');
+          window.location.href = '/';
         }
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`
+          }
         });
         
         if (error) throw error;
         
         if (data.user) {
-          if (data.user.email_confirmed_at) {
-            // User is immediately confirmed (email confirmation disabled)
-            toast({
-              title: "Account created!",
-              description: "Welcome to Secret Sips! You're now signed in.",
-            });
-            navigate('/');
-          } else {
-            // User needs to confirm email
-            toast({
-              title: "Check your email",
-              description: "We've sent you a confirmation link. Please check your email to activate your account.",
-            });
-          }
+          toast({
+            title: "Account created!",
+            description: "Welcome to Secret Sips! You can now sign in.",
+          });
+          setIsLogin(true);
+          setPassword('');
         }
       }
     } catch (error: any) {
       console.error('Auth error:', error);
       let errorMessage = error.message;
       
-      // Handle common errors with user-friendly messages
       if (error.message.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email or password. Please check your credentials and try again.';
       } else if (error.message.includes('User already registered')) {
@@ -162,13 +156,6 @@ const Auth = () => {
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>
-        </div>
-
-        {/* Development note */}
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700">
-            <strong>Development tip:</strong> If you're not receiving confirmation emails, you can disable email confirmation in your Supabase project settings under Authentication → Settings → "Confirm email" toggle.
-          </p>
         </div>
       </div>
     </div>
