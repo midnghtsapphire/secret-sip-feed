@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       difficulty_level: initialData?.difficulty_level || 1,
       prep_time_minutes: initialData?.prep_time_minutes || 5,
       tags: initialData?.tags?.join(', ') || '',
-      is_public: initialData?.is_public !== undefined ? initialData.is_public : true, // Default to public
+      is_public: initialData?.is_public !== undefined ? initialData.is_public : true,
     },
   });
 
@@ -76,52 +76,77 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
     console.log('Extracted recipe data:', extractedRecipe);
     
+    // Clean up the recipe name - remove platform references and extra text
+    let cleanName = extractedRecipe.name || '';
+    cleanName = cleanName
+      .replace(/^Lemon8\s*[·•]\s*/, '') // Remove "Lemon8 · " prefix
+      .replace(/\s*[·•]\s*@.+$/, '') // Remove " · @username" suffix
+      .replace(/Recipe Below[🍓]*/gi, '') // Remove "Recipe Below" text
+      .replace(/[🍫🍓]+/g, '') // Remove excessive emojis
+      .trim();
+
     // Populate form with extracted data
-    if (extractedRecipe.name) {
-      form.setValue('name', extractedRecipe.name);
+    if (cleanName) {
+      form.setValue('name', cleanName);
     }
-    if (extractedRecipe.description) {
+    
+    if (extractedRecipe.description && extractedRecipe.description !== 'See the full post on Lemon8') {
       form.setValue('description', extractedRecipe.description);
+    } else {
+      // Create a better description from the cleaned name
+      form.setValue('description', `Delicious ${cleanName.toLowerCase()} imported from ${extractedRecipe.source || 'social media'}`);
     }
+    
     if (extractedRecipe.category) {
       form.setValue('category', extractedRecipe.category);
     }
+    
     if (extractedRecipe.imageUrl) {
       form.setValue('image_url', extractedRecipe.imageUrl);
     }
     
-    // Handle instructions - join array or use as string
-    if (extractedRecipe.instructions) {
-      if (Array.isArray(extractedRecipe.instructions)) {
-        const instructionsText = extractedRecipe.instructions
-          .filter(instruction => instruction && instruction.trim())
-          .join('\n\n');
+    // Handle instructions - create meaningful instructions from ingredients if available
+    if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions) && extractedRecipe.instructions.length > 0) {
+      const instructionsText = extractedRecipe.instructions
+        .filter(instruction => instruction && instruction.trim() && instruction.length > 5)
+        .join('\n\n');
+      if (instructionsText) {
         form.setValue('instructions', instructionsText);
-      } else if (typeof extractedRecipe.instructions === 'string') {
-        form.setValue('instructions', extractedRecipe.instructions);
       }
+    } else if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients)) {
+      // Create instructions from ingredients
+      const ingredientInstructions = extractedRecipe.ingredients
+        .map((ingredient, index) => `${index + 1}. Add ${ingredient.toLowerCase()}`)
+        .join('\n');
+      const fullInstructions = `${ingredientInstructions}\n\n${extractedRecipe.ingredients.length + 1}. Mix well and enjoy!\n\nNote: This recipe was imported from ${extractedRecipe.source}. Please refer to the original post for detailed preparation steps.`;
+      form.setValue('instructions', fullInstructions);
     }
     
-    // Handle tags - join array or use as string
-    if (extractedRecipe.tags) {
-      if (Array.isArray(extractedRecipe.tags)) {
-        form.setValue('tags', extractedRecipe.tags.join(', '));
-      } else if (typeof extractedRecipe.tags === 'string') {
-        form.setValue('tags', extractedRecipe.tags);
-      }
+    // Handle tags - clean up and add meaningful tags
+    let tags = [];
+    if (extractedRecipe.tags && Array.isArray(extractedRecipe.tags)) {
+      tags = extractedRecipe.tags.filter(tag => tag && tag.length > 0);
     }
-
-    // Add source tag to track where it came from
-    const currentTags = form.getValues('tags');
-    const sourceTag = `ImportedFrom${extractedRecipe.source || 'SocialMedia'}`;
-    const allTags = currentTags ? `${currentTags}, ${sourceTag}` : sourceTag;
-    form.setValue('tags', allTags);
-
-    // Set estimated pricing and difficulty based on ingredients count
-    if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients)) {
-      const estimatedPrice = Math.max(4.50, extractedRecipe.ingredients.length * 0.75);
-      form.setValue('base_price', estimatedPrice);
+    
+    // Add source and import tags
+    tags.push('Imported', extractedRecipe.source || 'SocialMedia');
+    
+    // Add category-based tags
+    if (extractedRecipe.category === 'Pink Drinks') {
+      tags.push('Pink', 'Fruity');
     }
+    
+    form.setValue('tags', tags.join(', '));
+
+    // Set estimated pricing based on complexity
+    const estimatedPrice = extractedRecipe.ingredients?.length 
+      ? Math.max(4.50, extractedRecipe.ingredients.length * 0.75)
+      : 5.50;
+    form.setValue('base_price', estimatedPrice);
+
+    // Set reasonable defaults for other fields
+    form.setValue('difficulty_level', 2); // Medium difficulty for imported recipes
+    form.setValue('prep_time_minutes', 10); // Default 10 minutes
 
     setShowSocialExtractor(false);
   };
@@ -129,7 +154,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   const handleSubmit = (data: any) => {
     const recipeData = {
       ...data,
-      tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
+      tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()).filter(tag => tag.length > 0) : [],
       base_price: parseFloat(data.base_price) || 0,
     };
     
@@ -217,7 +242,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
@@ -274,7 +299,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
                 <FormControl>
                   <Textarea 
                     placeholder="Step by step instructions..." 
-                    className="min-h-[120px]"
+                    className="min-h-[160px]"
                     {...field} 
                   />
                 </FormControl>
