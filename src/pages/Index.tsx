@@ -14,7 +14,8 @@ const Index = () => {
     'Pink Drinks',
     'Blue Drinks', 
     'Green Teas',
-    'Foam Experts'
+    'Foam Experts',
+    'Budget Babe Brews'
   ];
 
   const mockDrinks = [
@@ -26,7 +27,8 @@ const Index = () => {
       tags: ['SecretMenu', 'FoamQueen', 'Viral'],
       saves: 12543,
       isTrending: true,
-      description: 'TikTok famous pink drink with extra coconut milk and vanilla cold foam swirl'
+      description: 'TikTok famous pink drink with extra coconut milk and vanilla cold foam swirl',
+      price: '$6.50'
     },
     {
       id: '2',
@@ -36,7 +38,8 @@ const Index = () => {
       tags: ['BlueVibes', 'Refreshing', 'Summer'],
       saves: 8921,
       isTrending: true,
-      description: 'Bright blue refresher with pineapple pieces and coconut flakes from Lemon8'
+      description: 'Bright blue refresher with pineapple pieces and coconut flakes from Lemon8',
+      price: '$5.75'
     },
     {
       id: '3',
@@ -45,7 +48,8 @@ const Index = () => {
       category: 'Green Teas',
       tags: ['MatchaHack', 'HealthyVibes', 'Instagram'],
       saves: 15234,
-      description: 'Layered matcha latte with sweet cream cold foam and brown sugar syrup'
+      description: 'Layered matcha latte with sweet cream cold foam and brown sugar syrup',
+      price: '$7.25'
     },
     {
       id: '4',
@@ -54,7 +58,8 @@ const Index = () => {
       category: 'Foam Experts',
       tags: ['FoamArt', 'Caramel', 'Cozy'],
       saves: 9876,
-      description: 'Extra caramel drizzle with thick vanilla cold foam and cinnamon dust'
+      description: 'Extra caramel drizzle with thick vanilla cold foam and cinnamon dust',
+      price: '$6.85'
     },
     {
       id: '5',
@@ -63,7 +68,8 @@ const Index = () => {
       category: 'Pink Drinks',
       tags: ['Aesthetic', 'Layered', 'PhotoWorthy'],
       saves: 11432,
-      description: 'Instagram-worthy ombre effect with strawberry, mango, and passion fruit'
+      description: 'Instagram-worthy ombre effect with strawberry, mango, and passion fruit',
+      price: '$6.95'
     },
     {
       id: '6',
@@ -72,7 +78,28 @@ const Index = () => {
       category: 'Blue Drinks',
       tags: ['ColdBrew', 'Oceanic', 'TikTok'],
       saves: 7654,
-      description: 'Blue spirulina cold brew with coconut cream foam and sea salt rim'
+      description: 'Blue spirulina cold brew with coconut cream foam and sea salt rim',
+      price: '$5.25'
+    },
+    {
+      id: '7',
+      name: 'Pink Drink Hack',
+      imageUrl: 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=300&h=200&fit=crop',
+      category: 'Budget Babe Brews',
+      tags: ['Budget', 'PinkVibes', 'Under5'],
+      saves: 4521,
+      description: 'Iced Passion Tango Tea with coconut milk and vanilla - looks like Pink Drink!',
+      price: '$2.95'
+    },
+    {
+      id: '8',
+      name: 'Strawberry Foam Water',
+      imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop',
+      category: 'Budget Babe Brews',
+      tags: ['Budget', 'LowCal', 'Under3'],
+      saves: 3245,
+      description: 'Ice water with freeze-dried strawberries and vanilla sweet cream foam',
+      price: '$1.85'
     }
   ];
 
@@ -84,7 +111,7 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
       <Header />
       
-      <main className="max-w-md mx-auto px-4 pb-20">
+      <main className="max-w-7xl mx-auto px-4 pb-20">
         {/* Category Filter */}
         <div className="mb-6">
           <CategoryFilter 
@@ -99,13 +126,18 @@ const Index = () => {
           <h2 className="text-xl font-bold text-gray-800 mb-2">
             {activeCategory === 'All' ? '🔥 Trending Now' : `✨ ${activeCategory}`}
           </h2>
+          {activeCategory === 'Budget Babe Brews' && (
+            <p className="text-pink-600 text-sm font-medium mb-2">
+              Pretty, Tasty, Under $5 – Your wallet & tastebuds will thank you ⭐
+            </p>
+          )}
           <p className="text-gray-600 text-sm">
             {filteredDrinks.length} viral recipes found
           </p>
         </div>
         
-        {/* Drinks Feed */}
-        <div className="space-y-6">
+        {/* Drinks Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredDrinks.map((drink) => (
             <DrinkCard key={drink.id} {...drink} />
           ))}
