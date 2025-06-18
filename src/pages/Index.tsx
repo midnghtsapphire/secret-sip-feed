@@ -1,8 +1,11 @@
+
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import CategoryFilter from '../components/CategoryFilter';
 import DrinkCard from '../components/DrinkCard';
 import FloatingAddButton from '../components/FloatingAddButton';
+import SEOHead from '../components/SEOHead';
 
 const Index = () => {
   const [activeCategory, setActiveCategory] = useState('All');
@@ -106,11 +109,42 @@ const Index = () => {
     ? mockDrinks 
     : mockDrinks.filter(drink => drink.category === activeCategory);
 
+  const structuredData = {
+    "@context": "https://schema.org/",
+    "@type": "WebSite",
+    "name": "Secret Sips",
+    "description": "Discover viral Starbucks recipes, secret menu drinks, and budget-friendly hacks from TikTok, Instagram & Lemon8.",
+    "url": "https://secret-sips.lovable.app",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://secret-sips.lovable.app/search?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+      <SEOHead structuredData={structuredData} />
+      
       <Header />
       
       <main className="max-w-7xl mx-auto px-4 pb-20">
+        {/* Breadcrumbs for SEO */}
+        <nav className="mb-4 text-sm text-gray-600">
+          <span>Home</span>
+          {activeCategory !== 'All' && (
+            <>
+              <span className="mx-2">/</span>
+              <Link 
+                to={`/category/${encodeURIComponent(activeCategory)}`}
+                className="text-pink-600 hover:text-pink-700"
+              >
+                {activeCategory}
+              </Link>
+            </>
+          )}
+        </nav>
+
         {/* Category Filter */}
         <div className="mb-6">
           <CategoryFilter 
@@ -120,25 +154,27 @@ const Index = () => {
           />
         </div>
         
-        {/* Trending Header */}
+        {/* Header with SEO-friendly content */}
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">
-            {activeCategory === 'All' ? '🔥 Trending Now' : `✨ ${activeCategory}`}
-          </h2>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">
+            {activeCategory === 'All' ? '🔥 Trending Starbucks Recipes' : `✨ ${activeCategory} Recipes`}
+          </h1>
           {activeCategory === 'Budget Babe Brews' && (
             <p className="text-pink-600 text-sm font-medium mb-2">
               Pretty, Tasty, Under $5 – Your wallet & tastebuds will thank you ⭐
             </p>
           )}
           <p className="text-gray-600 text-sm">
-            {filteredDrinks.length} viral recipes found
+            {filteredDrinks.length} viral recipe{filteredDrinks.length !== 1 ? 's' : ''} found
           </p>
         </div>
         
         {/* Drinks Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredDrinks.map((drink) => (
-            <DrinkCard key={drink.id} {...drink} />
+            <Link key={drink.id} to={`/drink/${drink.id}`} className="block">
+              <DrinkCard {...drink} />
+            </Link>
           ))}
         </div>
         
@@ -148,6 +184,27 @@ const Index = () => {
             Load More Recipes ✨
           </button>
         </div>
+
+        {/* SEO Content Section */}
+        <section className="mt-16 bg-white rounded-2xl p-8 shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">About Secret Sips</h2>
+          <div className="grid md:grid-cols-2 gap-8 text-gray-600">
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-2">Viral Starbucks Recipes</h3>
+              <p className="mb-4">
+                Discover the most popular Starbucks secret menu drinks trending on TikTok, Instagram, and Lemon8. 
+                From pink drinks to budget-friendly hacks, we've got all the recipes you need.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-2">Budget-Friendly Options</h3>
+              <p className="mb-4">
+                Save money while still enjoying Instagram-worthy drinks with our Budget Babe Brews collection. 
+                All recipes under $5 that taste just as good as the expensive originals.
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
       
       <FloatingAddButton />

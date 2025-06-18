@@ -29,7 +29,10 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const isInFavorites = isFavorite(id);
 
-  const handleFavoriteClick = () => {
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (isInFavorites) {
       removeFavorite(id);
     } else {
@@ -43,12 +46,13 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 h-fit">
+    <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 h-fit">
       <div className="relative">
         <img 
           src={imageUrl} 
-          alt={name}
+          alt={`${name} - Starbucks recipe`}
           className="w-full h-32 object-cover"
+          loading="lazy"
         />
         {isTrending && (
           <div className="absolute top-2 left-2 bg-gradient-to-r from-orange-400 to-red-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center">
@@ -64,6 +68,7 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
         <button
           onClick={handleFavoriteClick}
           className="absolute bottom-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all"
+          aria-label={isInFavorites ? 'Remove from favorites' : 'Add to favorites'}
         >
           <Heart 
             size={14} 
@@ -102,7 +107,7 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 };
 
