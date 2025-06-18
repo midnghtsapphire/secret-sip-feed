@@ -1,18 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus, Link as LinkIcon } from 'lucide-react';
-import { useMenuItems } from '@/hooks/useMenuItems';
+import { X, Link as LinkIcon } from 'lucide-react';
 import SocialMediaExtractor from './SocialMediaExtractor';
 import type { Database } from '@/integrations/supabase/types';
 
 type RecipeInsert = Database['public']['Tables']['recipes']['Insert'];
-type MenuItem = Database['public']['Tables']['menu_items']['Row'];
 
 interface RecipeFormProps {
   onSubmit: (data: Omit<RecipeInsert, 'user_id'>) => void;
@@ -21,13 +19,6 @@ interface RecipeFormProps {
 }
 
 const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData }) => {
-  const { groupedMenuItems } = useMenuItems();
-  const [selectedIngredients, setSelectedIngredients] = useState<Array<{
-    menu_item_id: string;
-    quantity: string;
-    is_optional: boolean;
-    notes: string;
-  }>>([]);
   const [showSocialExtractor, setShowSocialExtractor] = useState(false);
 
   const form = useForm({
@@ -53,25 +44,6 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     'Budget Babe Brews',
     'Viral Today'
   ];
-
-  const addIngredient = () => {
-    setSelectedIngredients([...selectedIngredients, {
-      menu_item_id: '',
-      quantity: '',
-      is_optional: false,
-      notes: ''
-    }]);
-  };
-
-  const removeIngredient = (index: number) => {
-    setSelectedIngredients(selectedIngredients.filter((_, i) => i !== index));
-  };
-
-  const updateIngredient = (index: number, field: string, value: any) => {
-    const updated = [...selectedIngredients];
-    updated[index] = { ...updated[index], [field]: value };
-    setSelectedIngredients(updated);
-  };
 
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
     console.log('Extracted recipe data:', extractedRecipe);
@@ -106,23 +78,42 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       form.setValue('image_url', extractedRecipe.imageUrl);
     }
     
-    // Handle instructions - create meaningful instructions from ingredients if available
+    // Build comprehensive instructions with all available recipe information
     let instructionsText = '';
+    
+    // Start with original instructions if available
     if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions) && extractedRecipe.instructions.length > 0) {
-      instructionsText = extractedRecipe.instructions
+      const cleanInstructions = extractedRecipe.instructions
         .filter(instruction => instruction && instruction.trim() && instruction.length > 5)
         .join('\n\n');
+      if (cleanInstructions) {
+        instructionsText += cleanInstructions + '\n\n';
+      }
     }
     
-    if (!instructionsText && extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients)) {
-      // Create instructions from ingredients
-      const ingredientInstructions = extractedRecipe.ingredients
-        .map((ingredient, index) => `${index + 1}. Add ${ingredient.toLowerCase()}`)
-        .join('\n');
-      instructionsText = `${ingredientInstructions}\n\n${extractedRecipe.ingredients.length + 1}. Mix well and enjoy!\n\nNote: This recipe was imported from ${extractedRecipe.source}. Please refer to the original post for detailed preparation steps.`;
+    // Add ingredients section if available
+    if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients) && extractedRecipe.ingredients.length > 0) {
+      instructionsText += 'INGREDIENTS:\n';
+      extractedRecipe.ingredients.forEach((ingredient, index) => {
+        instructionsText += `• ${ingredient}\n`;
+      });
+      instructionsText += '\n';
+      
+      // If no instructions were provided, create basic preparation steps
+      if (!extractedRecipe.instructions || extractedRecipe.instructions.length === 0) {
+        instructionsText += 'PREPARATION:\n';
+        extractedRecipe.ingredients.forEach((ingredient, index) => {
+          instructionsText += `${index + 1}. Add ${ingredient.toLowerCase()}\n`;
+        });
+        instructionsText += `${extractedRecipe.ingredients.length + 1}. Mix well and enjoy!\n\n`;
+      }
     }
     
-    if (!instructionsText) {
+    // Add source attribution
+    instructionsText += `Note: This recipe was imported from ${extractedRecipe.source || 'social media'}. Please refer to the original post for any additional preparation details or tips.`;
+    
+    // Fallback if no content is available
+    if (!instructionsText.trim()) {
       instructionsText = `1. Prepare all ingredients\n2. Follow the recipe steps from the original ${extractedRecipe.source} post\n3. Mix well and enjoy!\n\nNote: This recipe was imported from ${extractedRecipe.source}. Please refer to the original post for detailed preparation steps.`;
     }
     
@@ -303,11 +294,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
             name="instructions"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Instructions</FormLabel>
+                <FormLabel>Instructions & Recipe Details</FormLabel>
                 <FormControl>
                   <Textarea 
-                    placeholder="Step by step instructions..." 
-                    className="min-h-[160px]"
+                    placeholder="Full recipe instructions including ingredients and preparation steps..." 
+                    className="min-h-[200px]"
                     {...field} 
                   />
                 </FormControl>
