@@ -48,7 +48,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   ];
 
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
-    console.log('Extracted recipe data:', extractedRecipe);
+    console.log('Full extracted recipe data:', extractedRecipe);
     
     // Clean up the recipe name - remove platform references and extra text
     let cleanName = extractedRecipe.name || '';
@@ -65,23 +65,20 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       cleanDescription = `Delicious ${cleanName.toLowerCase()} recipe imported from ${extractedRecipe.source || 'social media'}`;
     }
 
-    // Update form values using setValue
-    if (cleanName) {
-      form.setValue('name', cleanName);
-    }
-    
-    form.setValue('description', cleanDescription);
-    
-    if (extractedRecipe.category) {
-      form.setValue('category', extractedRecipe.category);
-    }
-    
-    if (extractedRecipe.imageUrl && extractedRecipe.imageUrl !== true) {
-      form.setValue('image_url', extractedRecipe.imageUrl);
-    }
-    
-    // Build comprehensive instructions with all available recipe information
+    // Build comprehensive instructions with ALL available recipe information
     let instructionsText = '';
+    
+    console.log('Building instructions from extracted data...');
+    console.log('Available ingredients:', extractedRecipe.ingredients);
+    console.log('Available instructions:', extractedRecipe.instructions);
+    console.log('Available description:', extractedRecipe.description);
+    
+    // Add the full description/content if it exists and is meaningful
+    if (extractedRecipe.description && 
+        extractedRecipe.description !== 'See the full post on Lemon8' && 
+        extractedRecipe.description.length > 20) {
+      instructionsText += `RECIPE DETAILS:\n${extractedRecipe.description}\n\n`;
+    }
     
     // Add ingredients section if available
     if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients) && extractedRecipe.ingredients.length > 0) {
@@ -99,22 +96,55 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
         instructionsText += `${index + 1}. ${instruction}\n`;
       });
       instructionsText += '\n';
-    } else if (extractedRecipe.ingredients && extractedRecipe.ingredients.length > 0) {
-      // If no instructions were provided, create basic preparation steps
-      instructionsText += 'INSTRUCTIONS:\n';
-      instructionsText += '1. Gather all ingredients listed above\n';
-      instructionsText += '2. Follow the preparation method from the original post\n';
-      instructionsText += '3. Mix well and enjoy!\n\n';
+    }
+    
+    // If we have raw content, add it all
+    if (extractedRecipe.content && extractedRecipe.content.length > 50) {
+      instructionsText += 'FULL RECIPE CONTENT:\n';
+      instructionsText += extractedRecipe.content + '\n\n';
+    }
+    
+    // Add any additional text content
+    if (extractedRecipe.text && extractedRecipe.text.length > 20 && extractedRecipe.text !== extractedRecipe.description) {
+      instructionsText += 'ADDITIONAL DETAILS:\n';
+      instructionsText += extractedRecipe.text + '\n\n';
+    }
+    
+    // Fallback if no meaningful content is available
+    if (!instructionsText.trim() || instructionsText.length < 50) {
+      instructionsText = `RECIPE: ${cleanName}\n\n`;
+      instructionsText += `This recipe was imported from ${extractedRecipe.source || 'social media'}.\n\n`;
+      instructionsText += 'INGREDIENTS & INSTRUCTIONS:\n';
+      instructionsText += 'Please refer to the original post for the complete recipe details, ingredients list, and preparation steps.\n\n';
+      if (extractedRecipe.originalUrl) {
+        instructionsText += `Original post: ${extractedRecipe.originalUrl}\n\n`;
+      }
     }
     
     // Add source attribution
-    instructionsText += `Note: This recipe was imported from ${extractedRecipe.source || 'social media'}. Please refer to the original post for any additional preparation details or tips.`;
-    
-    // Fallback if no content is available
-    if (!instructionsText.trim()) {
-      instructionsText = `1. Prepare all ingredients\n2. Follow the recipe steps from the original ${extractedRecipe.source} post\n3. Mix well and enjoy!\n\nNote: This recipe was imported from ${extractedRecipe.source}. Please refer to the original post for detailed preparation steps.`;
+    instructionsText += `\n---\nImported from: ${extractedRecipe.source || 'Social Media'}`;
+    if (extractedRecipe.originalUrl) {
+      instructionsText += `\nOriginal URL: ${extractedRecipe.originalUrl}`;
     }
     
+    console.log('Final instructions text:', instructionsText);
+    
+    // Update form values using setValue
+    if (cleanName) {
+      form.setValue('name', cleanName);
+    }
+    
+    form.setValue('description', cleanDescription);
+    
+    if (extractedRecipe.category) {
+      form.setValue('category', extractedRecipe.category);
+    }
+    
+    if (extractedRecipe.imageUrl && extractedRecipe.imageUrl !== true) {
+      form.setValue('image_url', extractedRecipe.imageUrl);
+    }
+    
+    // Force update the instructions field
     form.setValue('instructions', instructionsText);
     
     // Handle tags - clean up and add meaningful tags
@@ -144,7 +174,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     form.setValue('prep_time_minutes', 10); // Default 10 minutes
     form.setValue('is_public', true); // Default to public
 
-    console.log('Form values after extraction:', form.getValues());
+    console.log('All form values after extraction:', form.getValues());
+    
+    // Force form to re-render
+    form.trigger();
+    
     setShowSocialExtractor(false);
   };
 
@@ -218,7 +252,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
                     <FormControl>
                       <Textarea 
                         placeholder="Full recipe with ingredients and preparation steps..." 
-                        className="min-h-[200px]"
+                        className="min-h-[300px]"
                         {...field} 
                       />
                     </FormControl>
