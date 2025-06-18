@@ -82,45 +82,51 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       .replace(/^Lemon8\s*[·•]\s*/, '') // Remove "Lemon8 · " prefix
       .replace(/\s*[·•]\s*@.+$/, '') // Remove " · @username" suffix
       .replace(/Recipe Below[🍓]*/gi, '') // Remove "Recipe Below" text
-      .replace(/[🍫🍓]+/g, '') // Remove excessive emojis
+      .replace(/[🍫🍓🎀✨💖🌈☕️🥤🧋🍹🍊🍋🥭🍓🫐🥝🍇🍑🍒🌸💕🎉🔥⭐️🌟💫🍪🧁🍰🎂]+/g, '') // Remove excessive emojis
       .trim();
 
-    // Populate form with extracted data
+    // Clean up description
+    let cleanDescription = extractedRecipe.description || '';
+    if (cleanDescription === 'See the full post on Lemon8' || cleanDescription.length < 10) {
+      cleanDescription = `Delicious ${cleanName.toLowerCase()} recipe imported from ${extractedRecipe.source || 'social media'}`;
+    }
+
+    // Update form values using setValue
     if (cleanName) {
       form.setValue('name', cleanName);
     }
     
-    if (extractedRecipe.description && extractedRecipe.description !== 'See the full post on Lemon8') {
-      form.setValue('description', extractedRecipe.description);
-    } else {
-      // Create a better description from the cleaned name
-      form.setValue('description', `Delicious ${cleanName.toLowerCase()} imported from ${extractedRecipe.source || 'social media'}`);
-    }
+    form.setValue('description', cleanDescription);
     
     if (extractedRecipe.category) {
       form.setValue('category', extractedRecipe.category);
     }
     
-    if (extractedRecipe.imageUrl) {
+    if (extractedRecipe.imageUrl && extractedRecipe.imageUrl !== true) {
       form.setValue('image_url', extractedRecipe.imageUrl);
     }
     
     // Handle instructions - create meaningful instructions from ingredients if available
+    let instructionsText = '';
     if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions) && extractedRecipe.instructions.length > 0) {
-      const instructionsText = extractedRecipe.instructions
+      instructionsText = extractedRecipe.instructions
         .filter(instruction => instruction && instruction.trim() && instruction.length > 5)
         .join('\n\n');
-      if (instructionsText) {
-        form.setValue('instructions', instructionsText);
-      }
-    } else if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients)) {
+    }
+    
+    if (!instructionsText && extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients)) {
       // Create instructions from ingredients
       const ingredientInstructions = extractedRecipe.ingredients
         .map((ingredient, index) => `${index + 1}. Add ${ingredient.toLowerCase()}`)
         .join('\n');
-      const fullInstructions = `${ingredientInstructions}\n\n${extractedRecipe.ingredients.length + 1}. Mix well and enjoy!\n\nNote: This recipe was imported from ${extractedRecipe.source}. Please refer to the original post for detailed preparation steps.`;
-      form.setValue('instructions', fullInstructions);
+      instructionsText = `${ingredientInstructions}\n\n${extractedRecipe.ingredients.length + 1}. Mix well and enjoy!\n\nNote: This recipe was imported from ${extractedRecipe.source}. Please refer to the original post for detailed preparation steps.`;
     }
+    
+    if (!instructionsText) {
+      instructionsText = `1. Prepare all ingredients\n2. Follow the recipe steps from the original ${extractedRecipe.source} post\n3. Mix well and enjoy!\n\nNote: This recipe was imported from ${extractedRecipe.source}. Please refer to the original post for detailed preparation steps.`;
+    }
+    
+    form.setValue('instructions', instructionsText);
     
     // Handle tags - clean up and add meaningful tags
     let tags = [];
@@ -147,7 +153,9 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     // Set reasonable defaults for other fields
     form.setValue('difficulty_level', 2); // Medium difficulty for imported recipes
     form.setValue('prep_time_minutes', 10); // Default 10 minutes
+    form.setValue('is_public', true); // Default to public
 
+    console.log('Form values after extraction:', form.getValues());
     setShowSocialExtractor(false);
   };
 
