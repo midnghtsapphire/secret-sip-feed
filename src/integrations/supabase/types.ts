@@ -39,6 +39,135 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          price: number | null
+          type: Database["public"]["Enums"]["menu_item_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          price?: number | null
+          type: Database["public"]["Enums"]["menu_item_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number | null
+          type?: Database["public"]["Enums"]["menu_item_type"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recipe_ingredients: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_optional: boolean | null
+          menu_item_id: string
+          notes: string | null
+          quantity: string | null
+          recipe_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_optional?: boolean | null
+          menu_item_id: string
+          notes?: string | null
+          quantity?: string | null
+          recipe_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_optional?: boolean | null
+          menu_item_id?: string
+          notes?: string | null
+          quantity?: string | null
+          recipe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_ingredients_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_ingredients_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipes: {
+        Row: {
+          base_price: number | null
+          category: Database["public"]["Enums"]["recipe_category"]
+          created_at: string | null
+          description: string | null
+          difficulty_level: number | null
+          id: string
+          image_url: string | null
+          instructions: string | null
+          is_public: boolean | null
+          name: string
+          prep_time_minutes: number | null
+          saves_count: number | null
+          tags: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          base_price?: number | null
+          category: Database["public"]["Enums"]["recipe_category"]
+          created_at?: string | null
+          description?: string | null
+          difficulty_level?: number | null
+          id?: string
+          image_url?: string | null
+          instructions?: string | null
+          is_public?: boolean | null
+          name: string
+          prep_time_minutes?: number | null
+          saves_count?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          base_price?: number | null
+          category?: Database["public"]["Enums"]["recipe_category"]
+          created_at?: string | null
+          description?: string | null
+          difficulty_level?: number | null
+          id?: string
+          image_url?: string | null
+          instructions?: string | null
+          is_public?: boolean | null
+          name?: string
+          prep_time_minutes?: number | null
+          saves_count?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -47,7 +176,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      menu_item_type: "syrup" | "milk" | "base" | "topping" | "add_on"
+      recipe_category:
+        | "Pink Drinks"
+        | "Blue Drinks"
+        | "Green Teas"
+        | "Foam Experts"
+        | "Budget Babe Brews"
+        | "Viral Today"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -162,6 +298,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      menu_item_type: ["syrup", "milk", "base", "topping", "add_on"],
+      recipe_category: [
+        "Pink Drinks",
+        "Blue Drinks",
+        "Green Teas",
+        "Foam Experts",
+        "Budget Babe Brews",
+        "Viral Today",
+      ],
+    },
   },
 } as const
