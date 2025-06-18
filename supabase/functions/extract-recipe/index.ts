@@ -38,6 +38,7 @@ serve(async (req) => {
     // Get the Firecrawl API key from Supabase secrets
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     console.log('API key exists:', !!firecrawlApiKey);
+    console.log('API key first 10 chars:', firecrawlApiKey ? firecrawlApiKey.substring(0, 10) + '...' : 'null');
     
     if (!firecrawlApiKey) {
       console.error('FIRECRAWL_API_KEY not found in environment variables');
@@ -47,7 +48,8 @@ serve(async (req) => {
       );
     }
 
-    // Use Firecrawl v1 API to scrape the content
+    // Use Firecrawl v1 API to scrape the content with simple scrape
+    console.log('Making request to Firecrawl API...');
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -56,40 +58,71 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        formats: ['markdown', 'html'],
+        formats: ['markdown'],
         onlyMainContent: true,
-        includeHtml: true,
-        waitFor: 3000
+        waitFor: 2000
       })
     });
 
     console.log('Firecrawl response status:', scrapeResponse.status);
-    console.log('Firecrawl response headers:', Object.fromEntries(scrapeResponse.headers.entries()));
+    console.log('Firecrawl response ok:', scrapeResponse.ok);
+
+    // Get response text first to log it
+    const responseText = await scrapeResponse.text();
+    console.log('Firecrawl raw response:', responseText);
 
     if (!scrapeResponse.ok) {
-      const errorText = await scrapeResponse.text();
-      console.error('Firecrawl error response:', errorText);
+      console.error('Firecrawl error response status:', scrapeResponse.status);
+      console.error('Firecrawl error response body:', responseText);
+      
+      // Try to parse error response
+      let errorMessage = 'Failed to scrape content';
+      try {
+        const errorData = JSON.parse(responseText);
+        errorMessage = errorData.error || errorData.message || errorMessage;
+        console.log('Parsed error:', errorMessage);
+      } catch (parseError) {
+        console.log('Could not parse error response as JSON');
+      }
       
       // If API key is invalid, return a more user-friendly error
       if (scrapeResponse.status === 401) {
         return new Response(
           JSON.stringify({ 
             error: 'Invalid Firecrawl API key. Please check your API key configuration.',
-            details: 'The Firecrawl API key appears to be invalid or expired.'
+            details: 'The Firecrawl API key appears to be invalid or expired.',
+            firecrawlError: responseText
           }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
       return new Response(
-        JSON.stringify({ error: `Failed to scrape content: ${errorText}` }),
+        JSON.stringify({ 
+          error: `Firecrawl API error: ${errorMessage}`,
+          details: responseText,
+          status: scrapeResponse.status
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const scrapeData = await scrapeResponse.json();
-    console.log('Scraped data structure:', Object.keys(scrapeData));
-    console.log('Scraped data success:', scrapeData.success);
+    // Parse the response
+    let scrapeData;
+    try {
+      scrapeData = JSON.parse(responseText);
+      console.log('Parsed scrape data keys:', Object.keys(scrapeData));
+      console.log('Scrape data success:', scrapeData.success);
+    } catch (parseError) {
+      console.error('Failed to parse Firecrawl response as JSON:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid response from Firecrawl API',
+          details: 'Response was not valid JSON'
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!scrapeData.success) {
       console.error('Firecrawl scraping failed:', scrapeData.error);
@@ -109,6 +142,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in extract-recipe function:', error);
+    console.error('Error stack:', error.stack);
     return new Response(
       JSON.stringify({ 
         error: 'An unexpected error occurred', 
