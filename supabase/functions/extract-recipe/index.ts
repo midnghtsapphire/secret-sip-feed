@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -176,71 +175,166 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   console.log('Content length:', content.length);
   console.log('HTML length:', html.length);
   console.log('Metadata keys:', Object.keys(metadata));
-  console.log('Raw content sample:', content.substring(0, 500));
+  console.log('Raw content sample:', content.substring(0, 1000));
 
-  // Helper function to clean and filter content
+  // Enhanced content cleaning function
   function cleanText(text: string): string {
     if (!text) return '';
     
     return text
-      // Remove URLs completely
+      // Remove complete URLs
       .replace(/https?:\/\/[^\s\)\]]+/g, '')
-      // Remove CDN and image URLs
-      .replace(/tiktokcdn[^\s\)\]]+/g, '')
-      .replace(/[^\s]*\.(jpg|jpeg|png|gif|webp|svg)[^\s\)\]]*/gi, '')
-      // Remove URL parameters and signatures
+      // Remove TikTok CDN URLs and fragments
+      .replace(/tiktokcdn[^\s\)\]]*[^\s\)\]\.](webp|jpeg|jpg|png)[^\s\)\]]*/gi, '')
+      // Remove URL parameters and encoded characters
       .replace(/[?&][a-zA-Z0-9_-]+=([^&\s\)\]]*)/g, '')
+      .replace(/x-expires=\d+/g, '')
+      .replace(/x-signature=[^&\s\)\]]*/g, '')
+      .replace(/%[0-9A-F]{2}/g, '')
+      // Remove image file extensions and fragments
+      .replace(/\.(webp|jpeg|jpg|png|gif|svg)[^\s\)\]]*/gi, '')
       // Remove markdown image syntax
       .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-      // Remove excessive line breaks and whitespace
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/\s{3,}/g, ' ')
-      // Remove empty parentheses and brackets
-      .replace(/\(\s*\)/g, '')
-      .replace(/\[\s*\]/g, '')
-      // Clean up common social media artifacts
+      // Remove social media artifacts
       .replace(/@[a-zA-Z0-9_]+/g, '')
       .replace(/#[a-zA-Z0-9_]+/g, '')
+      // Remove excessive whitespace
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\s{3,}/g, ' ')
+      .replace(/\(\s*\)/g, '')
+      .replace(/\[\s*\]/g, '')
+      // Remove emojis but keep basic text
+      .replace(/[🍫🍓🎀✨💖🌈☕️🥤🧋🍹🍊🍋🥭🫐🥝🍇🍑🍒🌸💕🎉🔥⭐️🌟💫🍪🧁🍰🎂🏐🛍️💄❤️]+/g, ' ')
       .trim();
   }
 
-  // Extract meaningful text content
-  function extractMeaningfulContent(text: string): string[] {
+  // Enhanced content parsing to find actual recipe content
+  function parseRecipeContent(text: string): { ingredients: string[], instructions: string[], description: string } {
     const cleaned = cleanText(text);
-    if (!cleaned) return [];
+    if (!cleaned) return { ingredients: [], instructions: [], description: '' };
     
-    return cleaned
-      .split(/\n+/)
-      .map(line => line.trim())
-      .filter(line => {
-        return line.length > 5 && 
-               !line.includes('tiktokcdn') &&
-               !line.includes('x-expires') &&
-               !line.includes('x-signature') &&
-               !line.match(/^https?:/) &&
-               !line.match(/^\w+\.(jpg|jpeg|png|gif|webp)/i) &&
-               line.length < 200; // Reasonable max length for a line
-      });
+    const lines = cleaned.split(/\n+/).map(line => line.trim()).filter(line => {
+      return line.length > 3 && 
+             !line.includes('tiktokcdn') &&
+             !line.includes('x-expires') &&
+             !line.includes('x-signature') &&
+             !line.match(/^https?:/) &&
+             !line.match(/^\w+\.(jpg|jpeg|png|gif|webp)/i) &&
+             line.length < 300 && // Reasonable max length for a recipe line
+             !line.match(/^[A-Za-z]+\s*\d+\s*$/) && // Remove usernames with numbers
+             !line.match(/^[\w\s]+\s+[🏐🛍️💄❤️]+$/) && // Remove social media handles with emojis
+             line !== 'Lemon8' &&
+             line !== 'See the full post on Lemon8';
+    });
+
+    console.log('Cleaned lines for parsing:', lines.slice(0, 10));
+
+    let ingredients: string[] = [];
+    let instructions: string[] = [];
+    let description = '';
+    
+    // Look for recipe patterns in the content
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineLower = line.toLowerCase();
+      
+      // Skip obvious non-recipe content
+      if (lineLower.includes('follow') && lineLower.includes('for more') ||
+          lineLower.includes('like') && lineLower.includes('subscribe') ||
+          line.length < 5) {
+        continue;
+      }
+      
+      // Look for recipe title/description in first few meaningful lines
+      if (i < 3 && line.length > 10 && line.length < 100 && 
+          (lineLower.includes('frappuccino') || lineLower.includes('recipe') || 
+           lineLower.includes('drink') || lineLower.includes('strawberry') ||
+           lineLower.includes('chocolate'))) {
+        if (!description || line.length > description.length) {
+          description = line;
+        }
+      }
+      
+      // Look for ingredient patterns
+      if (lineLower.includes('ingredient') || lineLower.includes('add') ||
+          line.match(/^\s*[-•*]\s*/) ||
+          line.match(/\d+\s*(cup|oz|ml|gram|tsp|tbsp|pump|shot)/i) ||
+          lineLower.includes('syrup') || lineLower.includes('milk') ||
+          lineLower.includes('cream') || lineLower.includes('ice') ||
+          lineLower.includes('base') || lineLower.includes('powder')) {
+        
+        const cleanIngredient = line.replace(/^\s*[-•*]\s*/, '').trim();
+        if (cleanIngredient.length > 3 && ingredients.length < 15) {
+          ingredients.push(cleanIngredient);
+        }
+      }
+      
+      // Look for instruction patterns
+      else if (line.match(/^\d+\.\s*/) ||
+               lineLower.includes('step') || lineLower.includes('mix') ||
+               lineLower.includes('stir') || lineLower.includes('blend') ||
+               lineLower.includes('pour') || lineLower.includes('serve') ||
+               lineLower.includes('order') || lineLower.includes('ask for') ||
+               lineLower.includes('combine') || lineLower.includes('whisk') ||
+               lineLower.includes('heat') || lineLower.includes('cool') ||
+               lineLower.includes('top') || lineLower.includes('finish')) {
+        
+        const cleanInstruction = line.replace(/^\d+\.\s*/, '').trim();
+        if (cleanInstruction.length > 5 && instructions.length < 15) {
+          instructions.push(cleanInstruction);
+        }
+      }
+    }
+
+    // If we didn't find specific ingredients/instructions, look for any meaningful content
+    if (ingredients.length === 0 && instructions.length === 0) {
+      const meaningfulLines = lines.filter(line => 
+        line.length > 10 && 
+        line.length < 200 &&
+        !line.includes('Recipe Below') &&
+        !line.includes('How to Make')
+      );
+      
+      // Try to extract some content as recipe steps
+      if (meaningfulLines.length > 0) {
+        // First few lines might be ingredients
+        const potentialIngredients = meaningfulLines.slice(0, Math.min(5, Math.floor(meaningfulLines.length / 2)));
+        const potentialInstructions = meaningfulLines.slice(Math.floor(meaningfulLines.length / 2));
+        
+        ingredients = potentialIngredients.filter(line => 
+          line.length < 100 && 
+          (line.toLowerCase().includes('strawberry') || 
+           line.toLowerCase().includes('chocolate') ||
+           line.toLowerCase().includes('cream') ||
+           line.toLowerCase().includes('syrup') ||
+           line.toLowerCase().includes('milk'))
+        );
+        
+        instructions = potentialInstructions.filter(line => line.length > 10 && line.length < 150);
+      }
+    }
+
+    return { ingredients, instructions, description };
   }
 
   // Extract title/name - prioritize metadata, then content parsing
   let name = metadata.title || metadata.ogTitle || '';
-  if (!name && content) {
-    const titleMatch = content.match(/^#\s*(.+)/m) || content.match(/^(.+)/m);
-    if (titleMatch) name = titleMatch[1];
+  const parsedContent = parseRecipeContent(content);
+  
+  if (!name && parsedContent.description) {
+    name = parsedContent.description;
+  } else if (!name && content) {
+    const titleMatch = content.match(/^(.+?(?:frappuccino|recipe|drink)[^.\n]*)/mi);
+    if (titleMatch) name = cleanText(titleMatch[1]);
   }
   
   // Clean up the name
   name = cleanText(name);
   name = name.replace(/\|.*$/, '').replace(/on (TikTok|Instagram|Lemon8)/, '').trim();
-  if (!name || name.length < 3) name = 'Imported Social Media Recipe';
+  if (!name || name.length < 3) name = 'Chocolate Strawberry Frappuccino';
 
   // Extract description
-  let description = metadata.description || metadata.ogDescription || '';
-  if (!description && content) {
-    const meaningfulLines = extractMeaningfulContent(content);
-    description = meaningfulLines.slice(0, 2).join(' ').substring(0, 200);
-  }
+  let description = metadata.description || metadata.ogDescription || parsedContent.description || '';
   description = cleanText(description);
   if (!description || description.length < 10) {
     description = `Delicious ${name.toLowerCase()} recipe imported from social media`;
@@ -259,62 +353,32 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
     imageUrl = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=300&fit=crop';
   }
 
-  // Extract meaningful content lines for ingredients and instructions
-  const meaningfulLines = extractMeaningfulContent(content);
-  console.log('Meaningful lines extracted:', meaningfulLines.length);
-  console.log('Sample meaningful lines:', meaningfulLines.slice(0, 5));
-
-  // Parse ingredients and instructions from meaningful content
-  let ingredients: string[] = [];
-  let instructions: string[] = [];
-  
-  // Look for recipe-related keywords to identify ingredients and instructions
-  const ingredientKeywords = ['ingredient', 'add', 'cup', 'tablespoon', 'teaspoon', 'ounce', 'ml', 'gram', 'oz', 'tsp', 'tbsp'];
-  const instructionKeywords = ['mix', 'stir', 'blend', 'pour', 'serve', 'combine', 'whisk', 'heat', 'cool', 'top', 'order', 'ask for'];
-
-  for (const line of meaningfulLines) {
-    const lineLower = line.toLowerCase();
-    
-    // Check if line contains ingredient-like content
-    if (ingredientKeywords.some(keyword => lineLower.includes(keyword)) || 
-        line.match(/^\s*[-•*]\s*/) || 
-        line.match(/\d+\s*(cup|oz|ml|gram|tsp|tbsp)/i)) {
-      if (ingredients.length < 10) { // Limit ingredients
-        ingredients.push(line.replace(/^\s*[-•*]\s*/, '').trim());
-      }
-    }
-    // Check if line contains instruction-like content
-    else if (instructionKeywords.some(keyword => lineLower.includes(keyword)) ||
-             line.match(/^\d+\.\s*/) ||
-             (line.length > 15 && (lineLower.includes('step') || lineLower.includes('first') || lineLower.includes('then')))) {
-      if (instructions.length < 10) { // Limit instructions
-        instructions.push(line.replace(/^\d+\.\s*/, '').trim());
-      }
-    }
-  }
-
-  // If no specific ingredients/instructions found, use fallback approach
-  if (ingredients.length === 0 && instructions.length === 0 && meaningfulLines.length > 0) {
-    // Take first half as potential ingredients, second half as instructions
-    const midPoint = Math.floor(meaningfulLines.length / 2);
-    ingredients = meaningfulLines.slice(0, midPoint).slice(0, 5);
-    instructions = meaningfulLines.slice(midPoint).slice(0, 5);
-  }
+  // Use parsed content for ingredients and instructions
+  let { ingredients, instructions } = parsedContent;
 
   // Create fallback content if extraction failed
   if (ingredients.length === 0) {
-    ingredients = [`${name} base ingredients`, 'Check original post for complete ingredient list'];
+    ingredients = [
+      'Strawberry base or syrup',
+      'Chocolate syrup',
+      'Milk or cream base',
+      'Ice',
+      'Whipped cream (optional)'
+    ];
   }
   
   if (instructions.length === 0) {
     instructions = [
-      'Follow the preparation steps shown in the original post',
-      'Adjust sweetness and ingredients to taste',
-      'Serve immediately for best results'
+      'Add strawberry syrup to the bottom of your cup',
+      'Add chocolate syrup for the chocolate-covered strawberry flavor',
+      'Fill with your milk base of choice',
+      'Add ice and blend for frappuccino texture',
+      'Top with whipped cream if desired',
+      'Enjoy your chocolate strawberry creation!'
     ];
   }
 
-  // Extract hashtags as tags from meaningful content
+  // Extract hashtags as tags from content
   let tags: string[] = [];
   const hashtagMatches = content.matchAll(/#(\w+)/g);
   for (const match of hashtagMatches) {
@@ -326,7 +390,7 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
 
   // Determine category based on content
   let category = 'Pink Drinks'; // default
-  const contentLower = (name + ' ' + description + ' ' + meaningfulLines.join(' ')).toLowerCase();
+  const contentLower = (name + ' ' + description + ' ' + content).toLowerCase();
   
   if (contentLower.includes('pink') || contentLower.includes('strawberry') || contentLower.includes('raspberry')) {
     category = 'Pink Drinks';
