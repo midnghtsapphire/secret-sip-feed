@@ -1,5 +1,4 @@
 
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -48,7 +47,7 @@ serve(async (req) => {
       );
     }
 
-    // Use Firecrawl v1 API to scrape the social media post
+    // Use Firecrawl v1 API to scrape the content
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -58,27 +57,30 @@ serve(async (req) => {
       body: JSON.stringify({
         url: url,
         formats: ['markdown', 'html'],
-        extract: {
-          schema: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              description: { type: 'string' },
-              ingredients: { type: 'array', items: { type: 'string' } },
-              instructions: { type: 'array', items: { type: 'string' } },
-              tags: { type: 'array', items: { type: 'string' } }
-            }
-          }
-        },
+        onlyMainContent: true,
+        includeHtml: true,
         waitFor: 3000
       })
     });
 
     console.log('Firecrawl response status:', scrapeResponse.status);
+    console.log('Firecrawl response headers:', Object.fromEntries(scrapeResponse.headers.entries()));
 
     if (!scrapeResponse.ok) {
       const errorText = await scrapeResponse.text();
-      console.error('Firecrawl error:', errorText);
+      console.error('Firecrawl error response:', errorText);
+      
+      // If API key is invalid, return a more user-friendly error
+      if (scrapeResponse.status === 401) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid Firecrawl API key. Please check your API key configuration.',
+            details: 'The Firecrawl API key appears to be invalid or expired.'
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: `Failed to scrape content: ${errorText}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -87,6 +89,15 @@ serve(async (req) => {
 
     const scrapeData = await scrapeResponse.json();
     console.log('Scraped data structure:', Object.keys(scrapeData));
+    console.log('Scraped data success:', scrapeData.success);
+
+    if (!scrapeData.success) {
+      console.error('Firecrawl scraping failed:', scrapeData.error);
+      return new Response(
+        JSON.stringify({ error: scrapeData.error || 'Failed to scrape content' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Extract recipe information from the scraped content
     const extractedRecipe = await extractRecipeFromContent(scrapeData, url);
@@ -99,7 +110,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in extract-recipe function:', error);
     return new Response(
-      JSON.stringify({ error: 'An unexpected error occurred', details: error.message }),
+      JSON.stringify({ 
+        error: 'An unexpected error occurred', 
+        details: error.message,
+        type: 'UnexpectedError'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -108,16 +123,16 @@ serve(async (req) => {
 async function extractRecipeFromContent(scrapeData: any, originalUrl: string): Promise<ExtractedRecipe> {
   const content = scrapeData.data?.markdown || scrapeData.data?.content || scrapeData.markdown || scrapeData.content || '';
   const metadata = scrapeData.data?.metadata || scrapeData.metadata || {};
-  const extractedData = scrapeData.data?.extract || {};
+  const html = scrapeData.data?.html || scrapeData.html || '';
   
   console.log('Content length:', content.length);
+  console.log('HTML length:', html.length);
   console.log('Metadata keys:', Object.keys(metadata));
-  console.log('Extracted data:', extractedData);
   
-  // Extract title/name - prioritize extracted data, then metadata, then content parsing
-  let name = extractedData.title || metadata.title || metadata.ogTitle || '';
+  // Extract title/name - prioritize metadata, then content parsing
+  let name = metadata.title || metadata.ogTitle || '';
   if (!name && content) {
-    const titleMatch = content.match(/^#\s*(.+)/m);
+    const titleMatch = content.match(/^#\s*(.+)/m) || content.match(/^(.+)/m);
     if (titleMatch) name = titleMatch[1];
   }
   
@@ -126,7 +141,7 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   if (!name) name = 'Imported Recipe';
 
   // Extract description
-  let description = extractedData.description || metadata.description || metadata.ogDescription || '';
+  let description = metadata.description || metadata.ogDescription || '';
   if (!description && content) {
     const lines = content.split('\n').filter(line => line.trim() && !line.startsWith('#'));
     description = lines.slice(0, 3).join(' ').substring(0, 200);
@@ -138,8 +153,7 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
     imageUrl = metadata.ogImage;
   } else if (metadata.image) {
     imageUrl = metadata.image;
-  } else if (scrapeData.data?.html || scrapeData.html) {
-    const html = scrapeData.data?.html || scrapeData.html;
+  } else if (html) {
     const imgMatch = html.match(/<img[^>]+src="([^"]+)"/);
     if (imgMatch) imageUrl = imgMatch[1];
   }
@@ -149,62 +163,51 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
     imageUrl = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=300&fit=crop';
   }
 
-  // Extract ingredients and instructions - prioritize extracted data, then parse content
+  // Parse content for ingredients and instructions
   let ingredients: string[] = [];
   let instructions: string[] = [];
   
-  if (extractedData.ingredients && Array.isArray(extractedData.ingredients)) {
-    ingredients = extractedData.ingredients;
-  }
-  
-  if (extractedData.instructions && Array.isArray(extractedData.instructions)) {
-    instructions = extractedData.instructions;
-  }
-  
-  // If no structured data found, parse from content
-  if (content && (ingredients.length === 0 || instructions.length === 0)) {
+  if (content) {
     // Look for ingredient patterns
-    if (ingredients.length === 0) {
-      const ingredientPatterns = [
-        /(?:ingredients?|what you need|order|ask for)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
-        /[-•]\s*(.+?)(?=\n|$)/g
-      ];
-      
-      for (const pattern of ingredientPatterns) {
-        const matches = content.matchAll(pattern);
-        for (const match of matches) {
-          const ingredient = match[1]?.trim();
-          if (ingredient && ingredient.length > 3 && ingredient.length < 100) {
-            ingredients.push(ingredient);
-          }
+    const ingredientPatterns = [
+      /(?:ingredients?|what you need|order|ask for)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
+      /[-•*]\s*(.+?)(?=\n|$)/g
+    ];
+    
+    for (const pattern of ingredientPatterns) {
+      const matches = content.matchAll(pattern);
+      for (const match of matches) {
+        const ingredient = match[1]?.trim();
+        if (ingredient && ingredient.length > 3 && ingredient.length < 100) {
+          ingredients.push(ingredient);
         }
       }
+      // Break after first successful pattern
+      if (ingredients.length > 0) break;
     }
 
     // Look for instruction patterns
-    if (instructions.length === 0) {
-      const instructionPatterns = [
-        /(?:instructions?|how to|steps?)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
-        /\d+[.)]\s*(.+?)(?=\n|$)/g
-      ];
-      
-      for (const pattern of instructionPatterns) {
-        const matches = content.matchAll(pattern);
-        for (const match of matches) {
-          const instruction = match[1]?.trim();
-          if (instruction && instruction.length > 5) {
-            instructions.push(instruction);
-          }
+    const instructionPatterns = [
+      /(?:instructions?|how to|steps?)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
+      /\d+[.)]\s*(.+?)(?=\n|$)/g
+    ];
+    
+    for (const pattern of instructionPatterns) {
+      const matches = content.matchAll(pattern);
+      for (const match of matches) {
+        const instruction = match[1]?.trim();
+        if (instruction && instruction.length > 5) {
+          instructions.push(instruction);
         }
       }
+      // Break after first successful pattern
+      if (instructions.length > 0) break;
     }
   }
 
-  // Extract tags - prioritize extracted data, then parse content
+  // Extract hashtags as tags
   let tags: string[] = [];
-  if (extractedData.tags && Array.isArray(extractedData.tags)) {
-    tags = extractedData.tags;
-  } else if (content) {
+  if (content) {
     const hashtagMatches = content.matchAll(/#(\w+)/g);
     for (const match of hashtagMatches) {
       const tag = match[1];
@@ -238,7 +241,14 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   else if (originalUrl.includes('instagram.com')) source = 'Instagram';
   else if (originalUrl.includes('lemon8')) source = 'Lemon8';
 
-  console.log('Extracted recipe:', { name, description: description.substring(0, 50), imageUrl: !!imageUrl, ingredientsCount: ingredients.length, instructionsCount: instructions.length });
+  console.log('Extracted recipe:', { 
+    name, 
+    description: description.substring(0, 50), 
+    imageUrl: !!imageUrl, 
+    ingredientsCount: ingredients.length, 
+    instructionsCount: instructions.length,
+    tagsCount: tags.length 
+  });
 
   return {
     name,
@@ -252,4 +262,3 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
     originalUrl
   };
 }
-
