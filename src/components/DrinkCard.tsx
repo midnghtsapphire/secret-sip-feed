@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Heart, Bookmark, TrendingUp } from 'lucide-react';
+import { useFavorites } from '@/hooks/useFavorites';
 
 interface DrinkCardProps {
   id: string;
@@ -14,83 +15,82 @@ interface DrinkCardProps {
 }
 
 const DrinkCard: React.FC<DrinkCardProps> = ({
+  id,
   name,
   imageUrl,
   category,
   tags,
   saves,
   isTrending,
-  description
+  description,
 }) => {
-  const getCategoryGradient = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'pink drinks':
-        return 'gradient-pink';
-      case 'blue drinks':
-        return 'gradient-blue';
-      case 'green teas':
-        return 'gradient-green';
-      case 'foam experts':
-        return 'gradient-foam';
-      default:
-        return 'bg-gradient-to-r from-purple-400 to-pink-400';
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
+  const isInFavorites = isFavorite(id);
+
+  const handleFavoriteClick = () => {
+    if (isInFavorites) {
+      removeFavorite(id);
+    } else {
+      addFavorite({
+        id,
+        name,
+        imageUrl,
+        category,
+      });
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
-      {/* Image Container */}
-      <div className="relative h-64 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+      <div className="relative">
         <img 
           src={imageUrl} 
           alt={name}
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          className="w-full h-48 object-cover"
         />
-        
-        {/* Trending Badge */}
         {isTrending && (
-          <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 animate-trending">
-            <TrendingUp size={12} />
-            VIRAL
+          <div className="absolute top-3 left-3 bg-gradient-to-r from-orange-400 to-red-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center">
+            <TrendingUp size={12} className="mr-1" />
+            Trending
           </div>
         )}
-        
-        {/* Save Button */}
-        <button className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors">
-          <Bookmark size={16} className="text-gray-700" />
+        <button
+          onClick={handleFavoriteClick}
+          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all"
+        >
+          <Heart 
+            size={18} 
+            className={isInFavorites ? 'text-red-500 fill-current' : 'text-gray-600'} 
+          />
         </button>
-        
-        {/* Category Badge */}
-        <div className={`absolute bottom-3 left-3 ${getCategoryGradient(category)} px-3 py-1 rounded-full`}>
-          <span className="text-white text-xs font-medium">{category}</span>
-        </div>
       </div>
       
-      {/* Content */}
       <div className="p-4">
-        <h3 className="font-bold text-lg text-gray-800 mb-2 line-clamp-2">{name}</h3>
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-bold text-lg text-gray-800 leading-tight">{name}</h3>
+        </div>
+        
         <p className="text-gray-600 text-sm mb-3 line-clamp-2">{description}</p>
         
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {tags.slice(0, 3).map((tag, index) => (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {tags.map((tag, index) => (
             <span 
               key={index}
-              className="bg-gray-100 text-gray-700 px-2 py-1 rounded-lg text-xs"
+              className="bg-gradient-to-r from-pink-100 to-purple-100 text-pink-700 px-2 py-1 rounded-full text-xs font-medium"
             >
               #{tag}
             </span>
           ))}
         </div>
         
-        {/* Stats */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-gray-500">
-            <Heart size={14} />
-            <span className="text-xs">{saves.toLocaleString()} saves</span>
+          <div className="flex items-center text-gray-500 text-sm">
+            <Bookmark size={14} className="mr-1" />
+            {saves.toLocaleString()} saves
           </div>
-          <button className="text-pink-500 hover:text-pink-600 font-medium text-sm transition-colors">
-            Get Recipe →
+          
+          <button className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:from-pink-600 hover:to-purple-700 transition-all">
+            Get Recipe
           </button>
         </div>
       </div>
