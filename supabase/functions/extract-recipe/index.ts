@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,8 +35,12 @@ serve(async (req) => {
 
     console.log('Extracting recipe from URL:', url);
 
+    // Get the Firecrawl API key from Supabase secrets
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
+    console.log('API key exists:', !!firecrawlApiKey);
+    
     if (!firecrawlApiKey) {
+      console.error('FIRECRAWL_API_KEY not found in environment variables');
       return new Response(
         JSON.stringify({ error: 'Firecrawl API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -45,7 +48,7 @@ serve(async (req) => {
     }
 
     // Use Firecrawl to scrape the social media post
-    const scrapeResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
+    const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlApiKey}`,
@@ -55,21 +58,24 @@ serve(async (req) => {
         url: url,
         formats: ['markdown', 'html'],
         includeTags: ['img', 'meta', 'title'],
-        onlyMainContent: true
+        onlyMainContent: true,
+        waitFor: 3000
       })
     });
+
+    console.log('Firecrawl response status:', scrapeResponse.status);
 
     if (!scrapeResponse.ok) {
       const errorText = await scrapeResponse.text();
       console.error('Firecrawl error:', errorText);
       return new Response(
-        JSON.stringify({ error: 'Failed to scrape content' }),
+        JSON.stringify({ error: `Failed to scrape content: ${errorText}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const scrapeData = await scrapeResponse.json();
-    console.log('Scraped data:', JSON.stringify(scrapeData, null, 2));
+    console.log('Scraped data structure:', Object.keys(scrapeData));
 
     // Extract recipe information from the scraped content
     const extractedRecipe = await extractRecipeFromContent(scrapeData, url);
@@ -89,11 +95,14 @@ serve(async (req) => {
 });
 
 async function extractRecipeFromContent(scrapeData: any, originalUrl: string): Promise<ExtractedRecipe> {
-  const content = scrapeData.data?.markdown || scrapeData.data?.content || '';
-  const metadata = scrapeData.data?.metadata || {};
+  const content = scrapeData.data?.markdown || scrapeData.data?.content || scrapeData.markdown || scrapeData.content || '';
+  const metadata = scrapeData.data?.metadata || scrapeData.metadata || {};
+  
+  console.log('Content length:', content.length);
+  console.log('Metadata keys:', Object.keys(metadata));
   
   // Extract title/name
-  let name = metadata.title || '';
+  let name = metadata.title || metadata.ogTitle || '';
   if (!name && content) {
     const titleMatch = content.match(/^#\s*(.+)/m);
     if (titleMatch) name = titleMatch[1];
@@ -104,7 +113,7 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   if (!name) name = 'Imported Recipe';
 
   // Extract description
-  let description = metadata.description || '';
+  let description = metadata.description || metadata.ogDescription || '';
   if (!description && content) {
     const lines = content.split('\n').filter(line => line.trim() && !line.startsWith('#'));
     description = lines.slice(0, 3).join(' ').substring(0, 200);
@@ -114,8 +123,11 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   let imageUrl = '';
   if (metadata.ogImage) {
     imageUrl = metadata.ogImage;
-  } else if (scrapeData.data?.html) {
-    const imgMatch = scrapeData.data.html.match(/<img[^>]+src="([^"]+)"/);
+  } else if (metadata.image) {
+    imageUrl = metadata.image;
+  } else if (scrapeData.data?.html || scrapeData.html) {
+    const html = scrapeData.data?.html || scrapeData.html;
+    const imgMatch = html.match(/<img[^>]+src="([^"]+)"/);
     if (imgMatch) imageUrl = imgMatch[1];
   }
 
@@ -197,6 +209,8 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   if (originalUrl.includes('tiktok.com')) source = 'TikTok';
   else if (originalUrl.includes('instagram.com')) source = 'Instagram';
   else if (originalUrl.includes('lemon8')) source = 'Lemon8';
+
+  console.log('Extracted recipe:', { name, description: description.substring(0, 50), imageUrl: !!imageUrl, ingredientsCount: ingredients.length, instructionsCount: instructions.length });
 
   return {
     name,
