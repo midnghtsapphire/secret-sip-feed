@@ -3,9 +3,11 @@ import React from 'react';
 import { Search, Filter, User, LogOut, Heart, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdmin } from '@/hooks/useAdmin';
 
 const Header: React.FC = () => {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useAdmin();
 
   return (
     <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-200/50">
@@ -39,9 +41,11 @@ const Header: React.FC = () => {
                 <User size={20} className="text-gray-600" />
                 <span className="text-sm text-gray-600">{user.email}</span>
               </div>
-              <Link to="/recipes" className="text-purple-600 hover:text-purple-700" title="Manage Recipes">
-                <Plus size={20} />
-              </Link>
+              {isAdmin && (
+                <Link to="/recipes" className="text-purple-600 hover:text-purple-700" title="Manage Recipes">
+                  <Plus size={20} />
+                </Link>
+              )}
               <Link to="/favorites" className="text-pink-600 hover:text-pink-700">
                 <Heart size={20} />
               </Link>

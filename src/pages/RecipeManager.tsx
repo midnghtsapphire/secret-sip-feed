@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdmin } from '@/hooks/useAdmin';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useMenuItems } from '@/hooks/useMenuItems';
 import RecipeForm from '@/components/RecipeForm';
@@ -11,6 +12,7 @@ import Header from '@/components/Header';
 
 const RecipeManager: React.FC = () => {
   const { user } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const { recipes, isLoading, createRecipe, updateRecipe, deleteRecipe } = useRecipes();
   const { createMenuItem, groupedMenuItems } = useMenuItems();
   const [showRecipeForm, setShowRecipeForm] = useState(false);
@@ -24,7 +26,32 @@ const RecipeManager: React.FC = () => {
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Sign in required</h2>
-            <p className="text-gray-600">Please sign in to manage recipes and menu items.</p>
+            <p className="text-gray-600">Please sign in to access the recipe manager.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Admin access required</h2>
+            <p className="text-gray-600">Only administrators can manage recipes and menu items.</p>
           </div>
         </div>
       </div>
