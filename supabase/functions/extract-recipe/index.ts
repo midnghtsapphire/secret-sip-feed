@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -36,9 +35,8 @@ serve(async (req) => {
     console.log('Extracting recipe from URL:', url);
 
     // Get the Firecrawl API key from Supabase secrets
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    console.log('API key exists:', !!firecrawlApiKey);
-    console.log('API key first 10 chars:', firecrawlApiKey ? firecrawlApiKey.substring(0, 10) + '...' : 'null');
+    let firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
+    console.log('Raw API key exists:', !!firecrawlApiKey);
     
     if (!firecrawlApiKey) {
       console.error('FIRECRAWL_API_KEY not found in environment variables');
@@ -47,6 +45,21 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Clean the API key - remove any extra whitespace or prefixes
+    firecrawlApiKey = firecrawlApiKey.trim();
+    
+    // Remove common prefixes that might have been added by mistake
+    if (firecrawlApiKey.startsWith('Bearer ')) {
+      firecrawlApiKey = firecrawlApiKey.substring(7);
+    }
+    if (firecrawlApiKey.startsWith('fc-')) {
+      // This is correct format, keep as is
+    } else {
+      console.log('Warning: API key does not start with expected "fc-" prefix');
+    }
+    
+    console.log('Cleaned API key prefix:', firecrawlApiKey.substring(0, 10) + '...');
 
     // Use Firecrawl v1 API to scrape the content with simple scrape
     console.log('Making request to Firecrawl API...');
@@ -69,11 +82,10 @@ serve(async (req) => {
 
     // Get response text first to log it
     const responseText = await scrapeResponse.text();
-    console.log('Firecrawl raw response:', responseText);
+    console.log('Firecrawl raw response (first 200 chars):', responseText.substring(0, 200));
 
     if (!scrapeResponse.ok) {
       console.error('Firecrawl error response status:', scrapeResponse.status);
-      console.error('Firecrawl error response body:', responseText);
       
       // Try to parse error response
       let errorMessage = 'Failed to scrape content';
@@ -90,8 +102,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: 'Invalid Firecrawl API key. Please check your API key configuration.',
-            details: 'The Firecrawl API key appears to be invalid or expired.',
-            firecrawlError: responseText
+            details: 'The Firecrawl API key appears to be invalid, expired, or incorrectly formatted. Make sure it starts with "fc-" and has no extra spaces or prefixes.',
+            firecrawlError: errorMessage
           }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -100,7 +112,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: `Firecrawl API error: ${errorMessage}`,
-          details: responseText,
+          details: responseText.substring(0, 500),
           status: scrapeResponse.status
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
