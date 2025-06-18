@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -98,6 +99,51 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 text-foreground;
+    min-height: 100vh;
   }
+}
+
+/* Custom gradients for drink themes */
+.gradient-pink {
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+}
+
+.gradient-blue {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
+.gradient-green {
+  background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%);
+}
+
+.gradient-foam {
+  background: linear-gradient(135deg, #ebc0fd 0%, #d9ded8 100%);
+}
+
+/* Floating animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Trending pulse animation */
+@keyframes trending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-trending {
+  animation: trending-pulse 2s ease-in-out infinite;
+}
+
+/* Glass effect */
+.glass-effect {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
