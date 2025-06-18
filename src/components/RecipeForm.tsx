@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -6,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Link as LinkIcon } from 'lucide-react';
 import { useMenuItems } from '@/hooks/useMenuItems';
+import SocialMediaExtractor from './SocialMediaExtractor';
 import type { Database } from '@/integrations/supabase/types';
 
 type RecipeInsert = Database['public']['Tables']['recipes']['Insert'];
@@ -27,6 +27,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     is_optional: boolean;
     notes: string;
   }>>([]);
+  const [showSocialExtractor, setShowSocialExtractor] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -71,6 +72,29 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     setSelectedIngredients(updated);
   };
 
+  const handleSocialRecipeExtracted = (extractedRecipe: any) => {
+    // Populate form with extracted data
+    form.setValue('name', extractedRecipe.name);
+    form.setValue('description', extractedRecipe.description);
+    form.setValue('category', extractedRecipe.category);
+    form.setValue('image_url', extractedRecipe.imageUrl);
+    
+    if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions)) {
+      form.setValue('instructions', extractedRecipe.instructions.join('\n\n'));
+    }
+    
+    if (extractedRecipe.tags && Array.isArray(extractedRecipe.tags)) {
+      form.setValue('tags', extractedRecipe.tags.join(', '));
+    }
+
+    // Add source tag
+    const currentTags = form.getValues('tags');
+    const sourceTag = `ImportedFrom${extractedRecipe.source}`;
+    form.setValue('tags', currentTags ? `${currentTags}, ${sourceTag}` : sourceTag);
+
+    setShowSocialExtractor(false);
+  };
+
   const handleSubmit = (data: any) => {
     const recipeData = {
       ...data,
@@ -90,6 +114,38 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
           <X size={24} />
         </button>
       </div>
+
+      {!showSocialExtractor ? (
+        <div className="mb-6 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-800">Import from Social Media</h3>
+              <p className="text-sm text-gray-600">Extract recipe data from TikTok, Instagram, or Lemon8 posts</p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setShowSocialExtractor(true)}
+              variant="outline"
+              className="border-pink-300 text-pink-600 hover:bg-pink-50"
+            >
+              <LinkIcon size={16} className="mr-2" />
+              Import
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6">
+          <SocialMediaExtractor onRecipeExtracted={handleSocialRecipeExtracted} />
+          <Button
+            type="button"
+            onClick={() => setShowSocialExtractor(false)}
+            variant="outline"
+            className="mt-4 w-full"
+          >
+            Manual Entry Instead
+          </Button>
+        </div>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
