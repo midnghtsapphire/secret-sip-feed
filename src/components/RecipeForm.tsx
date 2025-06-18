@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Link as LinkIcon } from 'lucide-react';
+import { useAdmin } from '@/hooks/useAdmin';
 import SocialMediaExtractor from './SocialMediaExtractor';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -19,7 +20,8 @@ interface RecipeFormProps {
 }
 
 const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData }) => {
-  const [showSocialExtractor, setShowSocialExtractor] = useState(false);
+  const [showSocialExtractor, setShowSocialExtractor] = useState(true);
+  const { isAdmin } = useAdmin();
 
   const form = useForm({
     defaultValues: {
@@ -81,16 +83,6 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     // Build comprehensive instructions with all available recipe information
     let instructionsText = '';
     
-    // Start with original instructions if available
-    if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions) && extractedRecipe.instructions.length > 0) {
-      const cleanInstructions = extractedRecipe.instructions
-        .filter(instruction => instruction && instruction.trim() && instruction.length > 5)
-        .join('\n\n');
-      if (cleanInstructions) {
-        instructionsText += cleanInstructions + '\n\n';
-      }
-    }
-    
     // Add ingredients section if available
     if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients) && extractedRecipe.ingredients.length > 0) {
       instructionsText += 'INGREDIENTS:\n';
@@ -98,15 +90,21 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
         instructionsText += `• ${ingredient}\n`;
       });
       instructionsText += '\n';
-      
+    }
+    
+    // Add instructions section if available
+    if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions) && extractedRecipe.instructions.length > 0) {
+      instructionsText += 'INSTRUCTIONS:\n';
+      extractedRecipe.instructions.forEach((instruction, index) => {
+        instructionsText += `${index + 1}. ${instruction}\n`;
+      });
+      instructionsText += '\n';
+    } else if (extractedRecipe.ingredients && extractedRecipe.ingredients.length > 0) {
       // If no instructions were provided, create basic preparation steps
-      if (!extractedRecipe.instructions || extractedRecipe.instructions.length === 0) {
-        instructionsText += 'PREPARATION:\n';
-        extractedRecipe.ingredients.forEach((ingredient, index) => {
-          instructionsText += `${index + 1}. Add ${ingredient.toLowerCase()}\n`;
-        });
-        instructionsText += `${extractedRecipe.ingredients.length + 1}. Mix well and enjoy!\n\n`;
-      }
+      instructionsText += 'INSTRUCTIONS:\n';
+      instructionsText += '1. Gather all ingredients listed above\n';
+      instructionsText += '2. Follow the preparation method from the original post\n';
+      instructionsText += '3. Mix well and enjoy!\n\n';
     }
     
     // Add source attribution
@@ -161,6 +159,90 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     onSubmit(recipeData);
   };
 
+  // Simple import-only interface for regular users
+  if (!isAdmin) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Import Recipe from Social Media</h2>
+          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="mb-6 text-center">
+          <p className="text-gray-600 mb-4">
+            Import recipes directly from TikTok, Instagram, or Lemon8 posts
+          </p>
+        </div>
+
+        <SocialMediaExtractor onRecipeExtracted={handleSocialRecipeExtracted} />
+
+        {!showSocialExtractor && (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 mt-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Recipe Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Pink Paradise Latte" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Describe your amazing recipe..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="instructions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Complete Recipe (Ingredients & Instructions)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Full recipe with ingredients and preparation steps..." 
+                        className="min-h-[200px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-3">
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-gradient-to-r from-pink-500 to-purple-600">
+                  Create Recipe
+                </Button>
+              </div>
+            </form>
+          </Form>
+        )}
+      </div>
+    );
+  }
+
+  // Full admin interface
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <div className="flex justify-between items-center mb-6">
