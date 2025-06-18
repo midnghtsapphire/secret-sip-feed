@@ -1,4 +1,5 @@
 
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -47,7 +48,7 @@ serve(async (req) => {
       );
     }
 
-    // Use Firecrawl to scrape the social media post
+    // Use Firecrawl v1 API to scrape the social media post
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -57,8 +58,18 @@ serve(async (req) => {
       body: JSON.stringify({
         url: url,
         formats: ['markdown', 'html'],
-        includeTags: ['img', 'meta', 'title'],
-        onlyMainContent: true,
+        extract: {
+          schema: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              ingredients: { type: 'array', items: { type: 'string' } },
+              instructions: { type: 'array', items: { type: 'string' } },
+              tags: { type: 'array', items: { type: 'string' } }
+            }
+          }
+        },
         waitFor: 3000
       })
     });
@@ -97,12 +108,14 @@ serve(async (req) => {
 async function extractRecipeFromContent(scrapeData: any, originalUrl: string): Promise<ExtractedRecipe> {
   const content = scrapeData.data?.markdown || scrapeData.data?.content || scrapeData.markdown || scrapeData.content || '';
   const metadata = scrapeData.data?.metadata || scrapeData.metadata || {};
+  const extractedData = scrapeData.data?.extract || {};
   
   console.log('Content length:', content.length);
   console.log('Metadata keys:', Object.keys(metadata));
+  console.log('Extracted data:', extractedData);
   
-  // Extract title/name
-  let name = metadata.title || metadata.ogTitle || '';
+  // Extract title/name - prioritize extracted data, then metadata, then content parsing
+  let name = extractedData.title || metadata.title || metadata.ogTitle || '';
   if (!name && content) {
     const titleMatch = content.match(/^#\s*(.+)/m);
     if (titleMatch) name = titleMatch[1];
@@ -113,7 +126,7 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
   if (!name) name = 'Imported Recipe';
 
   // Extract description
-  let description = metadata.description || metadata.ogDescription || '';
+  let description = extractedData.description || metadata.description || metadata.ogDescription || '';
   if (!description && content) {
     const lines = content.split('\n').filter(line => line.trim() && !line.startsWith('#'));
     description = lines.slice(0, 3).join(' ').substring(0, 200);
@@ -136,47 +149,62 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
     imageUrl = 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=300&fit=crop';
   }
 
-  // Extract ingredients and instructions from content
-  const ingredients: string[] = [];
-  const instructions: string[] = [];
+  // Extract ingredients and instructions - prioritize extracted data, then parse content
+  let ingredients: string[] = [];
+  let instructions: string[] = [];
   
-  if (content) {
+  if (extractedData.ingredients && Array.isArray(extractedData.ingredients)) {
+    ingredients = extractedData.ingredients;
+  }
+  
+  if (extractedData.instructions && Array.isArray(extractedData.instructions)) {
+    instructions = extractedData.instructions;
+  }
+  
+  // If no structured data found, parse from content
+  if (content && (ingredients.length === 0 || instructions.length === 0)) {
     // Look for ingredient patterns
-    const ingredientPatterns = [
-      /(?:ingredients?|what you need|order|ask for)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
-      /[-•]\s*(.+?)(?=\n|$)/g
-    ];
-    
-    for (const pattern of ingredientPatterns) {
-      const matches = content.matchAll(pattern);
-      for (const match of matches) {
-        const ingredient = match[1]?.trim();
-        if (ingredient && ingredient.length > 3 && ingredient.length < 100) {
-          ingredients.push(ingredient);
+    if (ingredients.length === 0) {
+      const ingredientPatterns = [
+        /(?:ingredients?|what you need|order|ask for)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
+        /[-•]\s*(.+?)(?=\n|$)/g
+      ];
+      
+      for (const pattern of ingredientPatterns) {
+        const matches = content.matchAll(pattern);
+        for (const match of matches) {
+          const ingredient = match[1]?.trim();
+          if (ingredient && ingredient.length > 3 && ingredient.length < 100) {
+            ingredients.push(ingredient);
+          }
         }
       }
     }
 
     // Look for instruction patterns
-    const instructionPatterns = [
-      /(?:instructions?|how to|steps?)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
-      /\d+[.)]\s*(.+?)(?=\n|$)/g
-    ];
-    
-    for (const pattern of instructionPatterns) {
-      const matches = content.matchAll(pattern);
-      for (const match of matches) {
-        const instruction = match[1]?.trim();
-        if (instruction && instruction.length > 5) {
-          instructions.push(instruction);
+    if (instructions.length === 0) {
+      const instructionPatterns = [
+        /(?:instructions?|how to|steps?)[:]\s*(.+?)(?:\n\n|\n#|$)/gis,
+        /\d+[.)]\s*(.+?)(?=\n|$)/g
+      ];
+      
+      for (const pattern of instructionPatterns) {
+        const matches = content.matchAll(pattern);
+        for (const match of matches) {
+          const instruction = match[1]?.trim();
+          if (instruction && instruction.length > 5) {
+            instructions.push(instruction);
+          }
         }
       }
     }
   }
 
-  // Extract tags
-  const tags: string[] = [];
-  if (content) {
+  // Extract tags - prioritize extracted data, then parse content
+  let tags: string[] = [];
+  if (extractedData.tags && Array.isArray(extractedData.tags)) {
+    tags = extractedData.tags;
+  } else if (content) {
     const hashtagMatches = content.matchAll(/#(\w+)/g);
     for (const match of hashtagMatches) {
       const tag = match[1];
@@ -224,3 +252,4 @@ async function extractRecipeFromContent(scrapeData: any, originalUrl: string): P
     originalUrl
   };
 }
+
