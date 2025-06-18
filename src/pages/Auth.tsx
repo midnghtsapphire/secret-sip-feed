@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,6 +11,18 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/');
+      }
+    };
+    checkUser();
+  }, [navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,34 +30,62 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        
         if (error) throw error;
-        toast({
-          title: "Welcome back!",
-          description: "You've been signed in successfully.",
-        });
-        window.location.href = '/';
+        
+        if (data.user) {
+          toast({
+            title: "Welcome back!",
+            description: "You've been signed in successfully.",
+          });
+          navigate('/');
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`
-          }
         });
+        
         if (error) throw error;
-        toast({
-          title: "Account created!",
-          description: "Please check your email to confirm your account.",
-        });
+        
+        if (data.user) {
+          if (data.user.email_confirmed_at) {
+            // User is immediately confirmed (email confirmation disabled)
+            toast({
+              title: "Account created!",
+              description: "Welcome to Secret Sips! You're now signed in.",
+            });
+            navigate('/');
+          } else {
+            // User needs to confirm email
+            toast({
+              title: "Check your email",
+              description: "We've sent you a confirmation link. Please check your email to activate your account.",
+            });
+          }
+        }
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
+      let errorMessage = error.message;
+      
+      // Handle common errors with user-friendly messages
+      if (error.message.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.message.includes('User already registered')) {
+        errorMessage = 'An account with this email already exists. Please sign in instead.';
+        setIsLogin(true);
+      } else if (error.message.includes('Password should be at least')) {
+        errorMessage = 'Password must be at least 6 characters long.';
+      }
+      
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Authentication Error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -100,6 +140,7 @@ const Auth = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 placeholder="Enter your password"
+                minLength={6}
                 required
               />
             </div>
@@ -121,6 +162,13 @@ const Auth = () => {
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>
+        </div>
+
+        {/* Development note */}
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs text-blue-700">
+            <strong>Development tip:</strong> If you're not receiving confirmation emails, you can disable email confirmation in your Supabase project settings under Authentication → Settings → "Confirm email" toggle.
+          </p>
         </div>
       </div>
     </div>
