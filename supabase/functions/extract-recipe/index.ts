@@ -133,28 +133,49 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract multiple images
+    // Extract multiple images with better validation
     const images: string[] = [];
     let primaryImageUrl = '';
     
-    // Helper function to validate and clean image URLs
-    const isValidImageUrl = (url: string): boolean => {
-      if (!url || typeof url !== 'string') return false;
+    // Helper function to validate image URLs more strictly
+    const isValidImageUrl = (imgUrl: string): boolean => {
+      if (!imgUrl || typeof imgUrl !== 'string') return false;
       
-      // Filter out data URLs, broken URLs, and placeholder images
-      if (url.startsWith('data:') || 
-          url.includes('placeholder') || 
-          url.includes('default') ||
-          url.length < 10) {
+      // Must be a proper URL
+      try {
+        new URL(imgUrl);
+      } catch {
         return false;
       }
       
-      // Check for common image extensions or CDN patterns
-      const imagePattern = /\.(jpg|jpeg|png|gif|webp)(\?|$)|\/img\/|cdn\.|images\.|photo/i;
-      return imagePattern.test(url);
+      // Filter out data URLs, broken URLs, and placeholder images
+      if (imgUrl.startsWith('data:') || 
+          imgUrl.includes('placeholder') || 
+          imgUrl.includes('default') ||
+          imgUrl.includes('blank') ||
+          imgUrl.includes('loading') ||
+          imgUrl.length < 15) {
+        return false;
+      }
+      
+      // Must be from a known CDN or have image extension
+      const validPatterns = [
+        /\.(jpg|jpeg|png|gif|webp)(\?|$)/i,
+        /cdn\./i,
+        /images\./i,
+        /photo/i,
+        /img\./i,
+        /static\./i,
+        /media\./i,
+        /tiktokcdn/i,
+        /instagramcdn/i,
+        /fbcdn/i
+      ];
+      
+      return validPatterns.some(pattern => pattern.test(imgUrl));
     };
     
-    // Try Open Graph image first
+    // Extract from Open Graph
     if (metadata?.ogImage) {
       const ogImages = Array.isArray(metadata.ogImage) ? metadata.ogImage : [metadata.ogImage];
       for (const img of ogImages) {
@@ -166,7 +187,7 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Try Twitter image
+    // Extract from Twitter/X metadata
     if (metadata?.twitterImage) {
       const twitterImages = Array.isArray(metadata.twitterImage) ? metadata.twitterImage : [metadata.twitterImage];
       for (const img of twitterImages) {
@@ -178,9 +199,9 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Extract images from HTML
+    // Extract from HTML img tags
     if (html) {
-      const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+      const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
       let imgMatch;
       
       while ((imgMatch = imgRegex.exec(html)) !== null) {
@@ -192,7 +213,7 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Also look for background images and other image references
+    // Extract from CSS background images
     if (html) {
       const bgImageRegex = /background-image:\s*url\(['"]?([^'")\s]+)['"]?\)/gi;
       let bgMatch;
@@ -206,68 +227,73 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Found images:', images);
+    console.log(`Found ${images.length} valid images:`, images);
     console.log('Primary image:', primaryImageUrl);
 
-    // Extract recipe name
+    // Extract recipe name - clean up more aggressively
     let recipeName = metadata?.title || '';
     
-    // Clean up recipe name
+    // Remove platform prefixes and suffixes
     recipeName = recipeName
-      .replace(/^.*?[·•]\s*/, '')
-      .replace(/\s*[·•]\s*@.+$/, '')
+      .replace(/^(Lemon8|TikTok|Instagram)\s*[·•-]\s*/i, '')
+      .replace(/\s*[·•-]\s*(Lemon8|TikTok|Instagram)$/i, '')
+      .replace(/\s*[·•-]\s*@.+$/i, '')
       .replace(/Recipe Below[🍓]*/gi, '')
       .replace(/[🍫🍓🎀✨💖🌈☕️🥤🧋🍹🍊🍋🥭🍓🫐🥝🍇🍑🍒🌸💕🎉🔥⭐️🌟💫🍪🧁🍰🎂]+/g, '')
       .trim();
 
-    // Extract ingredients and instructions from text
+    // Extract ingredients and instructions more carefully
     const ingredients: string[] = [];
     const instructionSteps: string[] = [];
     
-    // Look for numbered lists or bullet points for instructions
-    const lines = markdown.split('\n');
-    let inInstructions = false;
-    let inIngredients = false;
-    
-    for (const line of lines) {
-      const cleanLine = line.trim();
-      if (!cleanLine) continue;
+    // Only process if we have meaningful markdown content
+    if (markdown && markdown.length > 100) {
+      const lines = markdown.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      let inInstructions = false;
+      let inIngredients = false;
       
-      // Check for section headers
-      if (/^(ingredients?|what you need|recipe|items?):?$/i.test(cleanLine)) {
-        inIngredients = true;
-        inInstructions = false;
-        continue;
-      }
-      
-      if (/^(instructions?|steps?|how to|directions?|method):?$/i.test(cleanLine)) {
-        inInstructions = true;
-        inIngredients = false;
-        continue;
-      }
-      
-      // Extract content based on current section
-      if (inIngredients && (cleanLine.startsWith('•') || cleanLine.startsWith('-') || /^\d+\./.test(cleanLine))) {
-        const ingredient = cleanLine.replace(/^[•\-\d\.]\s*/, '').trim();
-        if (ingredient.length > 3) {
-          ingredients.push(ingredient);
+      for (const line of lines) {
+        // Skip lines that are just URLs or metadata
+        if (line.startsWith('http') || line.includes('tiktokcdn') || line.length < 3) {
+          continue;
         }
-      }
-      
-      if (inInstructions && (cleanLine.startsWith('•') || cleanLine.startsWith('-') || /^\d+\./.test(cleanLine))) {
-        const step = cleanLine.replace(/^[•\-\d\.]\s*/, '').trim();
-        if (step.length > 5) {
-          instructionSteps.push(step);
+        
+        // Check for section headers
+        if (/^(ingredients?|what you need|recipe|items?):?$/i.test(line)) {
+          inIngredients = true;
+          inInstructions = false;
+          continue;
         }
-      }
-      
-      // Also look for ingredients and steps without explicit sections
-      if (!inIngredients && !inInstructions) {
-        if (/^\d+\.?\s/.test(cleanLine) && cleanLine.length > 10) {
-          instructionSteps.push(cleanLine.replace(/^\d+\.?\s*/, ''));
+        
+        if (/^(instructions?|steps?|how to|directions?|method):?$/i.test(line)) {
+          inInstructions = true;
+          inIngredients = false;
+          continue;
         }
-        if (/^[•\-]\s/.test(cleanLine) && cleanLine.length > 5) {
-          ingredients.push(cleanLine.replace(/^[•\-]\s*/, ''));
+        
+        // Extract content based on current section
+        if (inIngredients && (line.startsWith('•') || line.startsWith('-') || /^\d+\./.test(line))) {
+          const ingredient = line.replace(/^[•\-\d\.]\s*/, '').trim();
+          if (ingredient.length > 3 && !ingredient.includes('http')) {
+            ingredients.push(ingredient);
+          }
+        }
+        
+        if (inInstructions && (line.startsWith('•') || line.startsWith('-') || /^\d+\./.test(line))) {
+          const step = line.replace(/^[•\-\d\.]\s*/, '').trim();
+          if (step.length > 5 && !step.includes('http')) {
+            instructionSteps.push(step);
+          }
+        }
+        
+        // Also look for ingredients and steps without explicit sections
+        if (!inIngredients && !inInstructions) {
+          if (/^\d+\.?\s/.test(line) && line.length > 10 && !line.includes('http')) {
+            instructionSteps.push(line.replace(/^\d+\.?\s*/, ''));
+          }
+          if (/^[•\-]\s/.test(line) && line.length > 5 && !line.includes('http')) {
+            ingredients.push(line.replace(/^[•\-]\s*/, ''));
+          }
         }
       }
     }
@@ -275,19 +301,20 @@ Deno.serve(async (req) => {
     // Determine category based on content
     let category = 'Pink Drinks'; // default
     
-    if (contentText.includes('green tea') || contentText.includes('matcha')) {
+    const lowerContent = contentText.toLowerCase();
+    if (lowerContent.includes('green tea') || lowerContent.includes('matcha')) {
       category = 'Green Teas';
-    } else if (contentText.includes('blue') || contentText.includes('butterfly')) {
+    } else if (lowerContent.includes('blue') || lowerContent.includes('butterfly')) {
       category = 'Blue Drinks';
-    } else if (contentText.includes('foam') || contentText.includes('cold foam')) {
+    } else if (lowerContent.includes('foam') || lowerContent.includes('cold foam')) {
       category = 'Foam Experts';
-    } else if (contentText.includes('budget') || contentText.includes('cheap') || contentText.includes('affordable')) {
+    } else if (lowerContent.includes('budget') || lowerContent.includes('cheap') || lowerContent.includes('affordable')) {
       category = 'Budget Babe Brews';
-    } else if (contentText.includes('viral') || contentText.includes('trending') || contentText.includes('tiktok')) {
+    } else if (lowerContent.includes('viral') || lowerContent.includes('trending') || lowerContent.includes('tiktok')) {
       category = 'Viral Today';
     }
 
-    // Build instructions text
+    // Build instructions text only if we have real content
     let instructionsText = '';
     
     if (ingredients.length > 0) {
@@ -306,11 +333,19 @@ Deno.serve(async (req) => {
       instructionsText += '\n';
     }
     
+    // If we don't have good extracted content, provide a clean template
+    if (instructionsText.length < 50) {
+      instructionsText = `RECIPE: ${recipeName || 'Imported Recipe'}\n\n`;
+      instructionsText += `SOURCE: ${url.includes('tiktok.com') ? 'TikTok' : url.includes('instagram.com') ? 'Instagram' : 'Lemon8'}\n\n`;
+      instructionsText += 'INGREDIENTS:\n(Please add ingredients from the original post)\n\n';
+      instructionsText += 'INSTRUCTIONS:\n(Please add preparation steps from the original post)\n\n';
+    }
+    
     // Add source attribution
     instructionsText += `\nImported from: ${url}`;
 
     // Validate that we found meaningful content
-    if (!recipeName && ingredients.length === 0 && instructionSteps.length === 0) {
+    if (!recipeName && ingredients.length === 0 && instructionSteps.length === 0 && !primaryImageUrl) {
       return new Response(
         JSON.stringify({ 
           error: 'No recipe content found',
