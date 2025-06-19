@@ -71,12 +71,19 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
         throw error;
       }
 
-      // The edge function returns the recipe data directly, not wrapped in a recipe property
+      console.log('Raw extraction response:', data);
+
+      // The edge function returns the recipe data directly
       if (data && data.name) {
+        console.log('Menu items found:', data.menuItems?.length || 0);
+        if (data.menuItems && data.menuItems.length > 0) {
+          console.log('Menu items:', data.menuItems);
+        }
+        
         setExtractedRecipe(data);
         toast({
           title: "Recipe Extracted!",
-          description: `Successfully extracted "${data.name}" from ${data.source}`,
+          description: `Successfully extracted "${data.name}" from ${data.source}${data.menuItems?.length ? ` with ${data.menuItems.length} menu items` : ''}`,
         });
       } else {
         throw new Error('No recipe data received');
@@ -152,6 +159,11 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
                 <h3 className="text-xl font-bold text-gray-800">{extractedRecipe.name}</h3>
                 <p className="text-sm text-gray-600">
                   Extracted from {extractedRecipe.source}
+                  {extractedRecipe.menuItems && extractedRecipe.menuItems.length > 0 && (
+                    <span className="ml-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">
+                      {extractedRecipe.menuItems.length} menu items found
+                    </span>
+                  )}
                 </p>
               </div>
               <a
@@ -166,11 +178,13 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <img
-                  src={extractedRecipe.imageUrl}
-                  alt={extractedRecipe.name}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
+                {extractedRecipe.imageUrl && (
+                  <img
+                    src={extractedRecipe.imageUrl}
+                    alt={extractedRecipe.name}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <div>
@@ -193,6 +207,25 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
                 )}
               </div>
             </div>
+
+            {/* Show menu items prominently */}
+            {extractedRecipe.menuItems && extractedRecipe.menuItems.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-semibold text-sm text-green-800 mb-2">🔥 Starbucks Menu Items Found:</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {extractedRecipe.menuItems.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between bg-white rounded px-3 py-2">
+                      <span className="text-sm font-medium text-gray-800">{item.name}</span>
+                      {item.quantity && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          {item.quantity}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {extractedRecipe.ingredients && extractedRecipe.ingredients.length > 0 && (
               <div>

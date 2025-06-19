@@ -38,6 +38,8 @@ Deno.serve(async (req) => {
       .from('menu_items')
       .select('name, type, description');
 
+    console.log('Available menu items to match:', menuItems?.length || 0);
+
     const { url } = await req.json();
     
     if (!url) {
@@ -108,58 +110,82 @@ Deno.serve(async (req) => {
     // Enhanced text processing for menu item extraction
     const fullText = contentText;
     
-    console.log('Full text for analysis:', fullText.substring(0, 500));
+    console.log('Full text for analysis (first 500 chars):', fullText.substring(0, 500));
 
-    // Create comprehensive menu item matching patterns
+    // AGGRESSIVE menu item matching
     const menuItemMatches: Array<{name: string; type: string; quantity?: string}> = [];
     
-    if (menuItems) {
+    if (menuItems && menuItems.length > 0) {
+      console.log('Starting menu item matching...');
+      
       for (const item of menuItems) {
         const itemName = item.name.toLowerCase();
-        const baseNames = [
+        const itemWords = itemName.split(' ');
+        
+        // Create multiple search variations
+        const searchTerms = [
           itemName,
           itemName.replace(' syrup', ''),
           itemName.replace(' milk', ''),
           itemName.replace(' sauce', ''),
           itemName.replace(' drizzle', ''),
+          itemName.replace(' foam', ''),
+          itemName.replace('vanilla sweet cream cold foam', 'vanilla cold foam'),
+          itemName.replace('vanilla sweet cream cold foam', 'sweet cream foam'),
+          itemName.replace('vanilla sweet cream cold foam', 'vanilla foam'),
+          // Single word matches for common items
+          ...itemWords.filter(word => word.length > 3)
         ];
         
-        for (const baseName of baseNames) {
+        let found = false;
+        let quantity = '';
+        
+        for (const searchTerm of searchTerms) {
+          if (searchTerm.length < 3) continue;
+          
           // Look for quantity + item patterns
           const quantityPatterns = [
-            new RegExp(`(\\d+(?:\\.\\d+)?|half|one|two|three|four|five)\\s*(?:pumps?|shots?|splashes?|drops?)\\s*(?:of\\s*)?${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
-            new RegExp(`${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*(?:x|×)\\s*(\\d+)`, 'gi'),
-            new RegExp(`(\\d+)\\s*${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
+            new RegExp(`(\\d+(?:\\.\\d+)?|half|one|two|three|four|five|\\d+/\\d+)\\s*(?:pumps?|shots?|splashes?|drops?|scoops?)\\s*(?:of\\s*)?${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
+            new RegExp(`${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*(?:x|×)\\s*(\\d+)`, 'gi'),
+            new RegExp(`(\\d+)\\s*${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
+            new RegExp(`add\\s+(\\d+(?:\\.\\d+)?|half|one|two|three|four|five)\\s*(?:pumps?|shots?|splashes?)?\\s*${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
           ];
           
           for (const pattern of quantityPatterns) {
-            const matches = fullText.matchAll(pattern);
-            for (const match of matches) {
-              const quantity = match[1] || 'standard';
-              menuItemMatches.push({
-                name: item.name,
-                type: item.type,
-                quantity: quantity
-              });
-              console.log(`Found menu item: ${item.name} (${quantity})`);
+            const matches = Array.from(fullText.matchAll(pattern));
+            if (matches.length > 0) {
+              quantity = matches[0][1] || 'standard';
+              found = true;
+              console.log(`FOUND with quantity: ${item.name} (${quantity}) - matched "${matches[0][0]}"`);
+              break;
             }
           }
           
+          if (found) break;
+          
           // Simple name matching without quantity
-          if (fullText.includes(baseName)) {
-            // Avoid duplicates
-            const exists = menuItemMatches.some(m => m.name === item.name);
-            if (!exists) {
-              menuItemMatches.push({
-                name: item.name,
-                type: item.type
-              });
-              console.log(`Found menu item: ${item.name}`);
-            }
+          if (fullText.includes(searchTerm)) {
+            found = true;
+            console.log(`FOUND simple match: ${item.name} - matched "${searchTerm}"`);
+            break;
+          }
+        }
+        
+        if (found) {
+          // Avoid duplicates
+          const exists = menuItemMatches.some(m => m.name === item.name);
+          if (!exists) {
+            menuItemMatches.push({
+              name: item.name,
+              type: item.type,
+              quantity: quantity || undefined
+            });
           }
         }
       }
     }
+
+    console.log(`Found ${menuItemMatches.length} menu items:`, menuItemMatches);
 
     // Extract recipe name
     let recipeName = metadata?.title || '';
@@ -239,11 +265,13 @@ Deno.serve(async (req) => {
       category = 'Viral Today';
     }
 
-    // Build instructions text
+    // Build instructions text with PROMINENT menu items section
     let instructionsText = '';
     
     if (menuItemMatches.length > 0) {
-      instructionsText += 'MENU ITEMS NEEDED:\n';
+      instructionsText += '🔥 STARBUCKS MENU ITEMS NEEDED:\n';
+      instructionsText += '='.repeat(40) + '\n';
+      
       const grouped = menuItemMatches.reduce((acc, item) => {
         if (!acc[item.type]) acc[item.type] = [];
         acc[item.type].push(item);
@@ -251,12 +279,12 @@ Deno.serve(async (req) => {
       }, {} as Record<string, typeof menuItemMatches>);
       
       Object.entries(grouped).forEach(([type, items]) => {
-        instructionsText += `\n${type.toUpperCase()}S:\n`;
+        instructionsText += `\n📋 ${type.toUpperCase()}S:\n`;
         items.forEach(item => {
           instructionsText += `• ${item.name}${item.quantity ? ` (${item.quantity})` : ''}\n`;
         });
       });
-      instructionsText += '\n';
+      instructionsText += '\n' + '=' .repeat(40) + '\n\n';
     }
     
     if (ingredients.length > 0) {
