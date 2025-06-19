@@ -7,19 +7,31 @@ import DrinkCard from '../components/DrinkCard';
 import FloatingAddButton from '../components/FloatingAddButton';
 import SEOHead from '../components/SEOHead';
 import { useRecipes } from '../hooks/useRecipes';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const Index = () => {
   const [activeCategory, setActiveCategory] = useState('All');
+  const [selectedMenuItem, setSelectedMenuItem] = useState('');
   const { recipes, isLoading } = useRecipes();
 
   const categories = [
     'All',
-    'Viral Today', 
     'Budget Babe Brews',
     'Pink Drinks',
     'Blue Drinks', 
     'Green Teas',
-    'Foam Experts'
+    'Foam Mixologists'
+  ];
+
+  const menuChoices = [
+    'Frappuccinos',
+    'Lattes',
+    'Macchiatos',
+    'Cold Brew',
+    'Refreshers',
+    'Tea Lattes',
+    'Hot Coffees',
+    'Iced Coffees'
   ];
 
   // Filter recipes based on active category and only show public recipes
@@ -65,6 +77,24 @@ const Index = () => {
           )}
         </nav>
 
+        {/* Viral Stickers */}
+        <div className="flex justify-center mb-6">
+          <div className="flex gap-3 flex-wrap justify-center">
+            <div className="bg-gradient-to-r from-pink-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform rotate-3 hover:rotate-6 transition-transform">
+              🔥 VIRAL
+            </div>
+            <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform -rotate-2 hover:-rotate-6 transition-transform">
+              ✨ VIRAL
+            </div>
+            <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform rotate-1 hover:rotate-4 transition-transform">
+              🚀 VIRAL
+            </div>
+            <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform -rotate-1 hover:-rotate-3 transition-transform">
+              💥 VIRAL
+            </div>
+          </div>
+        </div>
+
         {/* Category Filter */}
         <div className="mb-6">
           <CategoryFilter 
@@ -72,6 +102,27 @@ const Index = () => {
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
           />
+        </div>
+
+        {/* Menu Dropdown */}
+        <div className="mb-6">
+          <div className="max-w-xs">
+            <label htmlFor="menu-select" className="block text-sm font-medium text-gray-700 mb-2">
+              Choose Menu Category
+            </label>
+            <Select value={selectedMenuItem} onValueChange={setSelectedMenuItem}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a menu category" />
+              </SelectTrigger>
+              <SelectContent>
+                {menuChoices.map((choice) => (
+                  <SelectItem key={choice} value={choice}>
+                    {choice}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         
         {/* Header with SEO-friendly content */}

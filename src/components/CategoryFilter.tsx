@@ -18,8 +18,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
       case 'pink drinks': return '💗';
       case 'blue drinks': return '🧊';
       case 'green teas': return '🍃';
-      case 'foam experts': return '☁️';
-      case 'viral today': return '📈';
+      case 'foam mixologists': return '☁️';
+      case 'budget babe brews': return '💰';
       default: return '🥤';
     }
   };

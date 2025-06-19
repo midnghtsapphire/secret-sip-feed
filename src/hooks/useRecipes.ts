@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +14,6 @@ export const useRecipes = () => {
   const { data: recipes, isLoading } = useQuery({
     queryKey: ['recipes'],
     queryFn: async () => {
-      console.log('Fetching recipes from database...');
       const { data, error } = await supabase
         .from('recipes')
         .select('*')
@@ -25,20 +23,6 @@ export const useRecipes = () => {
         console.error('Error fetching recipes:', error);
         throw error;
       }
-      
-      console.log('Fetched recipes:', data);
-      console.log('Number of recipes:', data?.length || 0);
-      
-      // Log each recipe to see what data we have
-      data?.forEach((recipe, index) => {
-        console.log(`Recipe ${index + 1}:`, {
-          name: recipe.name,
-          image_url: recipe.image_url,
-          category: recipe.category,
-          is_public: recipe.is_public,
-          description: recipe.description
-        });
-      });
       
       return data as Recipe[];
     },
