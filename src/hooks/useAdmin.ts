@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useAdmin = () => {
   const { user } = useAuth();
@@ -8,14 +9,34 @@ export const useAdmin = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // For now, make all authenticated users admins to avoid the database issues
-    // You can implement proper role checking later once the basic auth works
-    if (user) {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
-    }
-    setLoading(false);
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Use the secure database function to check admin status
+        const { data, error } = await supabase.rpc('is_admin', {
+          user_uuid: user.id
+        });
+
+        if (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(data || false);
+        }
+      } catch (error) {
+        console.error('Admin check failed:', error);
+        setIsAdmin(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAdminStatus();
   }, [user]);
 
   return { isAdmin, loading };

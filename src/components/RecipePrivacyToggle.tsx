@@ -2,6 +2,8 @@
 import React from 'react';
 import { Switch } from '@/components/ui/switch';
 import { useAdmin } from '@/hooks/useAdmin';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface RecipePrivacyToggleProps {
   isPublic: boolean;
@@ -14,10 +16,41 @@ const RecipePrivacyToggle: React.FC<RecipePrivacyToggleProps> = ({
   onToggle, 
   recipeId 
 }) => {
-  const { isAdmin } = useAdmin();
+  const { user } = useAuth();
+  const { isAdmin, loading } = useAdmin();
+  const { toast } = useToast();
 
-  if (!isAdmin) {
-    return null;
+  const handleToggle = (checked: boolean) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to change recipe privacy",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isAdmin) {
+      toast({
+        title: "Admin access required",
+        description: "Only administrators can change recipe privacy settings",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onToggle(checked);
+  };
+
+  // Only show toggle for admins
+  if (loading || !user || !isAdmin) {
+    return (
+      <span className={`text-xs px-2 py-1 rounded-full ${
+        isPublic ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
+      }`}>
+        {isPublic ? 'Public' : 'Private'}
+      </span>
+    );
   }
 
   return (
@@ -27,8 +60,9 @@ const RecipePrivacyToggle: React.FC<RecipePrivacyToggleProps> = ({
       </span>
       <Switch
         checked={isPublic}
-        onCheckedChange={onToggle}
+        onCheckedChange={handleToggle}
         className="scale-75"
+        aria-label={`Toggle recipe privacy - currently ${isPublic ? 'public' : 'private'}`}
       />
     </div>
   );

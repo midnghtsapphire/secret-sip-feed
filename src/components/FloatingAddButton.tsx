@@ -20,25 +20,17 @@ const FloatingAddButton: React.FC = () => {
       });
       return;
     }
-    
-    if (!isAdmin) {
-      toast({
-        title: "Admin access required",
-        description: "Only administrators can add new recipes",
-        variant: "destructive",
-      });
-      return;
-    }
   };
 
-  // Don't show the button if loading or if user is not an admin
-  if (loading || !user || !isAdmin) {
+  // Show button for all authenticated users, not just admins
+  if (loading || !user) {
     return null;
   }
 
   return (
     <Link 
       to="/recipes"
+      onClick={handleClick}
       className="fixed bottom-6 right-6 bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110 animate-float z-50"
     >
       <Plus size={24} className="font-bold" />

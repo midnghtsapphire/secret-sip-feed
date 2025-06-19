@@ -9,31 +9,128 @@ import { useAdmin } from '@/hooks/useAdmin';
 import RecipeForm from '@/components/RecipeForm';
 import RecipePrivacyToggle from '@/components/RecipePrivacyToggle';
 import Header from '@/components/Header';
+import { useToast } from '@/hooks/use-toast';
 
 const RecipeManager = () => {
   const [showRecipeForm, setShowRecipeForm] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
   
   const { user } = useAuth();
-  const { isAdmin } = useAdmin();
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const { recipes, isLoading, createRecipe, updateRecipe, deleteRecipe } = useRecipes();
+  const { toast } = useToast();
 
   const handleCreateRecipe = async (recipeData) => {
-    await createRecipe.mutateAsync(recipeData);
-    setShowRecipeForm(false);
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create recipes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createRecipe.mutateAsync(recipeData);
+      setShowRecipeForm(false);
+    } catch (error) {
+      console.error('Failed to create recipe:', error);
+      toast({
+        title: "Error creating recipe",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateRecipe = async (recipeData) => {
-    if (editingRecipe) {
+    if (!user || !editingRecipe) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to update recipes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verify user owns the recipe being edited
+    if (editingRecipe.user_id !== user.id && !isAdmin) {
+      toast({
+        title: "Unauthorized",
+        description: "You can only edit your own recipes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
       await updateRecipe.mutateAsync({ id: editingRecipe.id, ...recipeData });
       setEditingRecipe(null);
+    } catch (error) {
+      console.error('Failed to update recipe:', error);
+      toast({
+        title: "Error updating recipe",
+        description: "Please try again later",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDeleteRecipe = async (id) => {
-    if (confirm('Are you sure you want to delete this recipe?')) {
-      await deleteRecipe.mutateAsync(id);
+  const handleDeleteRecipe = async (id, recipeUserId) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to delete recipes",
+        variant: "destructive",
+      });
+      return;
     }
+
+    // Verify user owns the recipe or is admin
+    if (recipeUserId !== user.id && !isAdmin) {
+      toast({
+        title: "Unauthorized",
+        description: "You can only delete your own recipes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (confirm('Are you sure you want to delete this recipe?')) {
+      try {
+        await deleteRecipe.mutateAsync(id);
+      } catch (error) {
+        console.error('Failed to delete recipe:', error);
+        toast({
+          title: "Error deleting recipe",
+          description: "Please try again later",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleEditRecipe = (recipe) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to edit recipes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verify user owns the recipe
+    if (recipe.user_id !== user.id && !isAdmin) {
+      toast({
+        title: "Unauthorized",
+        description: "You can only edit your own recipes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEditingRecipe(recipe);
   };
 
   if (!user) {
@@ -44,6 +141,19 @@ const RecipeManager = () => {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-800 mb-4">Sign In Required</h1>
             <p className="text-gray-600">Please sign in to manage your recipes.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+        <Header />
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
           </div>
         </div>
       </div>
@@ -68,6 +178,11 @@ const RecipeManager = () => {
     );
   }
 
+  // Filter recipes to show only user's own recipes (unless admin)
+  const visibleRecipes = recipes?.filter(recipe => 
+    isAdmin || recipe.user_id === user.id
+  ) || [];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
       <Header />
@@ -90,7 +205,9 @@ const RecipeManager = () => {
         {/* Recipes Section */}
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-800">Your Recipes</h2>
+            <h2 className="text-xl font-semibold text-gray-800">
+              {isAdmin ? 'All Recipes' : 'Your Recipes'}
+            </h2>
           </div>
 
           {isLoading ? (
@@ -98,9 +215,9 @@ const RecipeManager = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto"></div>
               <p className="text-gray-600 mt-2">Loading recipes...</p>
             </div>
-          ) : recipes && recipes.length > 0 ? (
+          ) : visibleRecipes.length > 0 ? (
             <div className="grid gap-4">
-              {recipes.map((recipe) => (
+              {visibleRecipes.map((recipe) => (
                 <Card key={recipe.id} className="p-6">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -109,11 +226,13 @@ const RecipeManager = () => {
                         <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full">
                           {recipe.category}
                         </span>
-                        <RecipePrivacyToggle
-                          recipeId={recipe.id}
-                          isPublic={recipe.is_public}
-                          onToggle={(isPublic) => updateRecipe.mutate({ id: recipe.id, is_public: isPublic })}
-                        />
+                        {isAdmin && (
+                          <RecipePrivacyToggle
+                            recipeId={recipe.id}
+                            isPublic={recipe.is_public}
+                            onToggle={(isPublic) => updateRecipe.mutate({ id: recipe.id, is_public: isPublic })}
+                          />
+                        )}
                       </div>
                       <p className="text-gray-600 text-sm mb-3">{recipe.description}</p>
                       <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -135,15 +254,15 @@ const RecipeManager = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setEditingRecipe(recipe)}
+                        onClick={() => handleEditRecipe(recipe)}
                       >
                         Edit
                       </Button>
-                      {isAdmin && (
+                      {(recipe.user_id === user.id || isAdmin) && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteRecipe(recipe.id)}
+                          onClick={() => handleDeleteRecipe(recipe.id, recipe.user_id)}
                           className="text-red-600 hover:text-red-700"
                         >
                           Delete

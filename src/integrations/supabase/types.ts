@@ -168,12 +168,40 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { user_uuid?: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_admin: {
+        Args: { user_uuid?: string }
+        Returns: boolean
+      }
     }
     Enums: {
       menu_item_type: "syrup" | "milk" | "base" | "topping" | "add_on"
@@ -184,6 +212,7 @@ export type Database = {
         | "Foam Experts"
         | "Budget Babe Brews"
         | "Viral Today"
+      user_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -308,6 +337,7 @@ export const Constants = {
         "Budget Babe Brews",
         "Viral Today",
       ],
+      user_role: ["admin", "user"],
     },
   },
 } as const
