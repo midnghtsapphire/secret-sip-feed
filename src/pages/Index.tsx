@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
@@ -33,7 +34,10 @@ const Index = () => {
     'Hot Coffees',
     'Iced Coffees',
     'Chocolate Dreams',
-    'Mocha Madness',
+    'Mocha Logic',
+    'Mad Matchas',
+    'Pretty n Pink',
+    'Blues Clues',
     'Syrup Series - Multi Syrup',
     'Copycat Classics',
     'Make Your Own Creations'
@@ -86,17 +90,17 @@ const Index = () => {
         {/* Viral Stickers */}
         <div className="flex justify-center mb-6">
           <div className="flex gap-3 flex-wrap justify-center">
-            <div className="bg-gradient-to-r from-pink-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform rotate-3 hover:rotate-6 transition-transform">
-              🔥 VIRAL
+            <div className="bg-gradient-to-r from-pink-500 to-red-500 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transform rotate-3 hover:rotate-6 transition-transform border-2 border-white">
+              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center mb-1 mx-auto">
+                <span className="text-xs">🔥</span>
+              </div>
+              VIRAL
             </div>
-            <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform -rotate-2 hover:-rotate-6 transition-transform">
-              ✨ VIRAL
-            </div>
-            <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform rotate-1 hover:rotate-4 transition-transform">
-              🚀 VIRAL
-            </div>
-            <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform -rotate-1 hover:-rotate-3 transition-transform">
-              💥 VIRAL
+            <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transform -rotate-2 hover:-rotate-6 transition-transform border-2 border-white">
+              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center mb-1 mx-auto">
+                <span className="text-xs">✨</span>
+              </div>
+              TRENDING
             </div>
           </div>
         </div>

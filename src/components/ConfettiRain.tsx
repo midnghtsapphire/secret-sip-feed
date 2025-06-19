@@ -20,7 +20,7 @@ const ConfettiRain = () => {
       {confettiPieces.map((piece) => (
         <div
           key={piece}
-          className={`absolute w-2 h-2 ${colors[piece % colors.length]} opacity-80`}
+          className={`absolute w-2 h-2 ${colors[piece % colors.length]} opacity-80 animate-confetti-fall`}
           style={{
             left: `${Math.random() * 100}%`,
             animationDelay: `${Math.random() * 5}s`,
@@ -29,22 +29,6 @@ const ConfettiRain = () => {
           }}
         />
       ))}
-      <style jsx>{`
-        @keyframes confetti-fall {
-          0% {
-            transform: translateY(-100vh) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(100vh) rotate(360deg);
-            opacity: 0;
-          }
-        }
-        
-        div[class*="bg-"] {
-          animation: confetti-fall linear infinite;
-        }
-      `}</style>
     </div>
   );
 };
