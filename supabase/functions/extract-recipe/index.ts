@@ -11,11 +11,6 @@ interface ExtractedRecipe {
   description: string;
   instructions: string;
   ingredients: string[];
-  menuItems: Array<{
-    name: string;
-    type: string;
-    quantity?: string;
-  }>;
   imageUrl?: string;
   category?: string;
   source: string;
@@ -28,18 +23,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Get all menu items to match against
-    const { data: menuItems } = await supabase
-      .from('menu_items')
-      .select('name, type, description');
-
-    console.log('Available menu items to match:', menuItems?.length || 0);
-
     const { url } = await req.json();
     
     if (!url) {
@@ -48,9 +31,17 @@ Deno.serve(async (req) => {
 
     console.log('Extracting recipe from:', url);
 
-    // Check if this is a Lemon8 redirect URL
-    if (url.includes('v.lemon8-app.com') || url.includes('/al/')) {
-      throw new Error('This appears to be a Lemon8 redirect URL. Please use the direct Lemon8 post URL instead. You can find this by opening the post in the Lemon8 app or website and copying the URL from there.');
+    // Check for problematic Lemon8 URLs
+    if (url.includes('v.lemon8-app.com') || url.includes('/al/') || url.startsWith('https://v.lemon8-ap')) {
+      throw new Error('This appears to be a Lemon8 redirect or short URL. Please use the full Lemon8 post URL instead. To get the full URL: 1) Open the post in the Lemon8 app or website, 2) Look for a share button or copy link option, 3) Make sure the URL starts with "https://www.lemon8-app.com/" and includes the full post path.');
+    }
+
+    // Validate URL is from supported platforms
+    const supportedPlatforms = ['tiktok.com', 'instagram.com', 'lemon8-app.com'];
+    const isSupported = supportedPlatforms.some(platform => url.includes(platform));
+    
+    if (!isSupported) {
+      throw new Error('Please use a TikTok, Instagram, or Lemon8 URL. Make sure to use the full URL from the platform, not a shortened or redirect link.');
     }
 
     const response = await fetch(`https://api.firecrawl.dev/v0/scrape`, {
@@ -68,13 +59,14 @@ Deno.serve(async (req) => {
     });
 
     if (!response.ok) {
-      throw new Error(`Firecrawl API error: ${response.statusText}`);
+      console.error('Firecrawl API error:', response.status, response.statusText);
+      throw new Error(`Failed to fetch content from the URL. This might be due to the page being protected, requiring login, or being a redirect page. Please try a different URL or make sure you're using the direct post URL.`);
     }
 
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error('Failed to scrape content');
+      throw new Error('Failed to extract content from the page. The page might be protected or require special access.');
     }
 
     const { markdown, html, metadata } = data.data;
@@ -83,7 +75,7 @@ Deno.serve(async (req) => {
     const contentText = [markdown, metadata?.title, metadata?.description].filter(Boolean).join(' ').toLowerCase();
     
     if (contentText.length < 50 || contentText.includes('open app') || contentText.includes('better on the app')) {
-      throw new Error('This URL appears to be a redirect or app download page. Please use the direct post URL instead. For Lemon8, try opening the post in your browser and copying the URL from there.');
+      throw new Error('This URL appears to redirect to an app download page. Please use the direct post URL instead. For Lemon8, make sure the URL starts with "https://www.lemon8-app.com/" and goes directly to the post.');
     }
 
     // Extract images
@@ -106,86 +98,6 @@ Deno.serve(async (req) => {
         imageUrl = imgMatch[1];
       }
     }
-
-    // Enhanced text processing for menu item extraction
-    const fullText = contentText;
-    
-    console.log('Full text for analysis (first 500 chars):', fullText.substring(0, 500));
-
-    // AGGRESSIVE menu item matching
-    const menuItemMatches: Array<{name: string; type: string; quantity?: string}> = [];
-    
-    if (menuItems && menuItems.length > 0) {
-      console.log('Starting menu item matching...');
-      
-      for (const item of menuItems) {
-        const itemName = item.name.toLowerCase();
-        const itemWords = itemName.split(' ');
-        
-        // Create multiple search variations
-        const searchTerms = [
-          itemName,
-          itemName.replace(' syrup', ''),
-          itemName.replace(' milk', ''),
-          itemName.replace(' sauce', ''),
-          itemName.replace(' drizzle', ''),
-          itemName.replace(' foam', ''),
-          itemName.replace('vanilla sweet cream cold foam', 'vanilla cold foam'),
-          itemName.replace('vanilla sweet cream cold foam', 'sweet cream foam'),
-          itemName.replace('vanilla sweet cream cold foam', 'vanilla foam'),
-          // Single word matches for common items
-          ...itemWords.filter(word => word.length > 3)
-        ];
-        
-        let found = false;
-        let quantity = '';
-        
-        for (const searchTerm of searchTerms) {
-          if (searchTerm.length < 3) continue;
-          
-          // Look for quantity + item patterns
-          const quantityPatterns = [
-            new RegExp(`(\\d+(?:\\.\\d+)?|half|one|two|three|four|five|\\d+/\\d+)\\s*(?:pumps?|shots?|splashes?|drops?|scoops?)\\s*(?:of\\s*)?${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
-            new RegExp(`${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*(?:x|×)\\s*(\\d+)`, 'gi'),
-            new RegExp(`(\\d+)\\s*${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
-            new RegExp(`add\\s+(\\d+(?:\\.\\d+)?|half|one|two|three|four|five)\\s*(?:pumps?|shots?|splashes?)?\\s*${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'),
-          ];
-          
-          for (const pattern of quantityPatterns) {
-            const matches = Array.from(fullText.matchAll(pattern));
-            if (matches.length > 0) {
-              quantity = matches[0][1] || 'standard';
-              found = true;
-              console.log(`FOUND with quantity: ${item.name} (${quantity}) - matched "${matches[0][0]}"`);
-              break;
-            }
-          }
-          
-          if (found) break;
-          
-          // Simple name matching without quantity
-          if (fullText.includes(searchTerm)) {
-            found = true;
-            console.log(`FOUND simple match: ${item.name} - matched "${searchTerm}"`);
-            break;
-          }
-        }
-        
-        if (found) {
-          // Avoid duplicates
-          const exists = menuItemMatches.some(m => m.name === item.name);
-          if (!exists) {
-            menuItemMatches.push({
-              name: item.name,
-              type: item.type,
-              quantity: quantity || undefined
-            });
-          }
-        }
-      }
-    }
-
-    console.log(`Found ${menuItemMatches.length} menu items:`, menuItemMatches);
 
     // Extract recipe name
     let recipeName = metadata?.title || '';
@@ -253,39 +165,20 @@ Deno.serve(async (req) => {
     // Determine category based on content
     let category = 'Pink Drinks'; // default
     
-    if (fullText.includes('green tea') || fullText.includes('matcha')) {
+    if (contentText.includes('green tea') || contentText.includes('matcha')) {
       category = 'Green Teas';
-    } else if (fullText.includes('blue') || fullText.includes('butterfly')) {
+    } else if (contentText.includes('blue') || contentText.includes('butterfly')) {
       category = 'Blue Drinks';
-    } else if (fullText.includes('foam') || fullText.includes('cold foam')) {
+    } else if (contentText.includes('foam') || contentText.includes('cold foam')) {
       category = 'Foam Experts';
-    } else if (fullText.includes('budget') || fullText.includes('cheap') || fullText.includes('affordable')) {
+    } else if (contentText.includes('budget') || contentText.includes('cheap') || contentText.includes('affordable')) {
       category = 'Budget Babe Brews';
-    } else if (fullText.includes('viral') || fullText.includes('trending') || fullText.includes('tiktok')) {
+    } else if (contentText.includes('viral') || contentText.includes('trending') || contentText.includes('tiktok')) {
       category = 'Viral Today';
     }
 
-    // Build instructions text with PROMINENT menu items section
+    // Build instructions text
     let instructionsText = '';
-    
-    if (menuItemMatches.length > 0) {
-      instructionsText += '🔥 STARBUCKS MENU ITEMS NEEDED:\n';
-      instructionsText += '='.repeat(40) + '\n';
-      
-      const grouped = menuItemMatches.reduce((acc, item) => {
-        if (!acc[item.type]) acc[item.type] = [];
-        acc[item.type].push(item);
-        return acc;
-      }, {} as Record<string, typeof menuItemMatches>);
-      
-      Object.entries(grouped).forEach(([type, items]) => {
-        instructionsText += `\n📋 ${type.toUpperCase()}S:\n`;
-        items.forEach(item => {
-          instructionsText += `• ${item.name}${item.quantity ? ` (${item.quantity})` : ''}\n`;
-        });
-      });
-      instructionsText += '\n' + '=' .repeat(40) + '\n\n';
-    }
     
     if (ingredients.length > 0) {
       instructionsText += 'INGREDIENTS:\n';
@@ -307,8 +200,8 @@ Deno.serve(async (req) => {
     instructionsText += `\nImported from: ${url}`;
 
     // Validate that we found meaningful content
-    if (!recipeName && menuItemMatches.length === 0 && ingredients.length === 0) {
-      throw new Error('No recipe content could be extracted from this URL. The page may be a redirect, app download prompt, or may not contain a recipe. Please try a different URL or the direct post URL.');
+    if (!recipeName && ingredients.length === 0 && instructionSteps.length === 0) {
+      throw new Error('No recipe content could be extracted from this URL. The page may be a redirect, app download prompt, or may not contain a recipe. Please make sure you\'re using the direct post URL and that the post contains recipe information.');
     }
 
     const extractedRecipe: ExtractedRecipe = {
@@ -316,7 +209,6 @@ Deno.serve(async (req) => {
       description: metadata?.description || `Delicious drink recipe imported from social media`,
       instructions: instructionsText,
       ingredients: ingredients,
-      menuItems: menuItemMatches,
       imageUrl: imageUrl,
       category: category,
       source: url.includes('tiktok.com') ? 'TikTok' : 
