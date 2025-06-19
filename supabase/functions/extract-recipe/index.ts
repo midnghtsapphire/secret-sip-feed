@@ -46,6 +46,11 @@ Deno.serve(async (req) => {
 
     console.log('Extracting recipe from:', url);
 
+    // Check if this is a Lemon8 redirect URL
+    if (url.includes('v.lemon8-app.com') || url.includes('/al/')) {
+      throw new Error('This appears to be a Lemon8 redirect URL. Please use the direct Lemon8 post URL instead. You can find this by opening the post in the Lemon8 app or website and copying the URL from there.');
+    }
+
     const response = await fetch(`https://api.firecrawl.dev/v0/scrape`, {
       method: 'POST',
       headers: {
@@ -72,6 +77,13 @@ Deno.serve(async (req) => {
 
     const { markdown, html, metadata } = data.data;
     
+    // Check if we got meaningful content
+    const contentText = [markdown, metadata?.title, metadata?.description].filter(Boolean).join(' ').toLowerCase();
+    
+    if (contentText.length < 50 || contentText.includes('open app') || contentText.includes('better on the app')) {
+      throw new Error('This URL appears to be a redirect or app download page. Please use the direct post URL instead. For Lemon8, try opening the post in your browser and copying the URL from there.');
+    }
+
     // Extract images
     let imageUrl = '';
     
@@ -94,7 +106,7 @@ Deno.serve(async (req) => {
     }
 
     // Enhanced text processing for menu item extraction
-    const fullText = [markdown, metadata?.title, metadata?.description].filter(Boolean).join(' ').toLowerCase();
+    const fullText = contentText;
     
     console.log('Full text for analysis:', fullText.substring(0, 500));
 
@@ -214,17 +226,16 @@ Deno.serve(async (req) => {
 
     // Determine category based on content
     let category = 'Pink Drinks'; // default
-    const contentLower = fullText.toLowerCase();
     
-    if (contentLower.includes('green tea') || contentLower.includes('matcha')) {
+    if (fullText.includes('green tea') || fullText.includes('matcha')) {
       category = 'Green Teas';
-    } else if (contentLower.includes('blue') || contentLower.includes('butterfly')) {
+    } else if (fullText.includes('blue') || fullText.includes('butterfly')) {
       category = 'Blue Drinks';
-    } else if (contentLower.includes('foam') || contentLower.includes('cold foam')) {
+    } else if (fullText.includes('foam') || fullText.includes('cold foam')) {
       category = 'Foam Experts';
-    } else if (contentLower.includes('budget') || contentLower.includes('cheap') || contentLower.includes('affordable')) {
+    } else if (fullText.includes('budget') || fullText.includes('cheap') || fullText.includes('affordable')) {
       category = 'Budget Babe Brews';
-    } else if (contentLower.includes('viral') || contentLower.includes('trending') || contentLower.includes('tiktok')) {
+    } else if (fullText.includes('viral') || fullText.includes('trending') || fullText.includes('tiktok')) {
       category = 'Viral Today';
     }
 
@@ -269,7 +280,7 @@ Deno.serve(async (req) => {
 
     // Validate that we found meaningful content
     if (!recipeName && menuItemMatches.length === 0 && ingredients.length === 0) {
-      throw new Error('No recipe content could be extracted from this URL. Please check that the post contains a drink recipe with ingredients or menu items.');
+      throw new Error('No recipe content could be extracted from this URL. The page may be a redirect, app download prompt, or may not contain a recipe. Please try a different URL or the direct post URL.');
     }
 
     const extractedRecipe: ExtractedRecipe = {
@@ -282,7 +293,7 @@ Deno.serve(async (req) => {
       category: category,
       source: url.includes('tiktok.com') ? 'TikTok' : 
                url.includes('instagram.com') ? 'Instagram' : 
-               url.includes('lemon8-app.com') ? 'Lemon8' : 'Social Media',
+               url.includes('lemon8') ? 'Lemon8' : 'Social Media',
       originalUrl: url
     };
 
