@@ -12,6 +12,7 @@ interface ExtractedRecipe {
   instructions: string;
   ingredients: string[];
   imageUrl?: string;
+  images?: string[];
   category?: string;
   source: string;
   originalUrl: string;
@@ -132,26 +133,81 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract images
-    let imageUrl = '';
+    // Extract multiple images
+    const images: string[] = [];
+    let primaryImageUrl = '';
+    
+    // Helper function to validate and clean image URLs
+    const isValidImageUrl = (url: string): boolean => {
+      if (!url || typeof url !== 'string') return false;
+      
+      // Filter out data URLs, broken URLs, and placeholder images
+      if (url.startsWith('data:') || 
+          url.includes('placeholder') || 
+          url.includes('default') ||
+          url.length < 10) {
+        return false;
+      }
+      
+      // Check for common image extensions or CDN patterns
+      const imagePattern = /\.(jpg|jpeg|png|gif|webp)(\?|$)|\/img\/|cdn\.|images\.|photo/i;
+      return imagePattern.test(url);
+    };
     
     // Try Open Graph image first
     if (metadata?.ogImage) {
-      imageUrl = Array.isArray(metadata.ogImage) ? metadata.ogImage[0] : metadata.ogImage;
+      const ogImages = Array.isArray(metadata.ogImage) ? metadata.ogImage : [metadata.ogImage];
+      for (const img of ogImages) {
+        const imgUrl = typeof img === 'string' ? img : img?.url;
+        if (isValidImageUrl(imgUrl)) {
+          images.push(imgUrl);
+          if (!primaryImageUrl) primaryImageUrl = imgUrl;
+        }
+      }
     }
     
     // Try Twitter image
-    if (!imageUrl && metadata?.twitterImage) {
-      imageUrl = Array.isArray(metadata.twitterImage) ? metadata.twitterImage[0] : metadata.twitterImage;
-    }
-    
-    // Look for images in HTML if no social media image found
-    if (!imageUrl && html) {
-      const imgMatch = html.match(/<img[^>]+src="([^"]+)"[^>]*>/i);
-      if (imgMatch) {
-        imageUrl = imgMatch[1];
+    if (metadata?.twitterImage) {
+      const twitterImages = Array.isArray(metadata.twitterImage) ? metadata.twitterImage : [metadata.twitterImage];
+      for (const img of twitterImages) {
+        const imgUrl = typeof img === 'string' ? img : img?.url;
+        if (isValidImageUrl(imgUrl) && !images.includes(imgUrl)) {
+          images.push(imgUrl);
+          if (!primaryImageUrl) primaryImageUrl = imgUrl;
+        }
       }
     }
+    
+    // Extract images from HTML
+    if (html) {
+      const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+      let imgMatch;
+      
+      while ((imgMatch = imgRegex.exec(html)) !== null) {
+        const imgUrl = imgMatch[1];
+        if (isValidImageUrl(imgUrl) && !images.includes(imgUrl)) {
+          images.push(imgUrl);
+          if (!primaryImageUrl) primaryImageUrl = imgUrl;
+        }
+      }
+    }
+    
+    // Also look for background images and other image references
+    if (html) {
+      const bgImageRegex = /background-image:\s*url\(['"]?([^'")\s]+)['"]?\)/gi;
+      let bgMatch;
+      
+      while ((bgMatch = bgImageRegex.exec(html)) !== null) {
+        const imgUrl = bgMatch[1];
+        if (isValidImageUrl(imgUrl) && !images.includes(imgUrl)) {
+          images.push(imgUrl);
+          if (!primaryImageUrl) primaryImageUrl = imgUrl;
+        }
+      }
+    }
+
+    console.log('Found images:', images);
+    console.log('Primary image:', primaryImageUrl);
 
     // Extract recipe name
     let recipeName = metadata?.title || '';
@@ -272,7 +328,8 @@ Deno.serve(async (req) => {
       description: metadata?.description || `Delicious drink recipe imported from social media`,
       instructions: instructionsText,
       ingredients: ingredients,
-      imageUrl: imageUrl,
+      imageUrl: primaryImageUrl,
+      images: images.length > 0 ? images : undefined,
       category: category,
       source: url.includes('tiktok.com') ? 'TikTok' : 
                url.includes('instagram.com') ? 'Instagram' : 
