@@ -1,0 +1,59 @@
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2 } from 'lucide-react';
+
+interface ExtractorFormProps {
+  url: string;
+  isExtracting: boolean;
+  onUrlChange: (url: string) => void;
+  onExtract: () => void;
+}
+
+const ExtractorForm: React.FC<ExtractorFormProps> = ({
+  url,
+  isExtracting,
+  onUrlChange,
+  onExtract
+}) => {
+  return (
+    <div className="space-y-4">
+      <div>
+        <label htmlFor="social-url" className="block text-sm font-medium text-gray-700 mb-2">
+          Social Media URL
+        </label>
+        <div className="flex gap-2">
+          <Input
+            id="social-url"
+            type="url"
+            value={url}
+            onChange={(e) => onUrlChange(e.target.value)}
+            placeholder="Paste TikTok, Instagram, or Lemon8 link here..."
+            className="flex-1"
+            disabled={isExtracting}
+          />
+          <Button 
+            onClick={onExtract}
+            disabled={isExtracting || !url.trim()}
+            className="bg-gradient-to-r from-pink-500 to-purple-600"
+          >
+            {isExtracting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Extracting...
+              </>
+            ) : (
+              'Extract Recipe'
+            )}
+          </Button>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Supports TikTok, Instagram, and Lemon8 recipe posts
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default ExtractorForm;
