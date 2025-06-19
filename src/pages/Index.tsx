@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
@@ -68,6 +67,26 @@ const Index = () => {
       <ConfettiRain />
       <SEOHead structuredData={structuredData} />
       
+      {/* Viral Stickers - Moved to very top and made smaller */}
+      <div className="relative z-30 pt-4 pb-2">
+        <div className="flex justify-center">
+          <div className="flex gap-8 flex-wrap justify-center">
+            <div className="bg-gradient-to-r from-pink-500 to-red-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md transform rotate-3 hover:rotate-6 transition-transform border border-white">
+              <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center mb-0.5 mx-auto">
+                <span className="text-[8px]">🔥</span>
+              </div>
+              VIRAL
+            </div>
+            <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md transform -rotate-2 hover:-rotate-6 transition-transform border border-white">
+              <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center mb-0.5 mx-auto">
+                <span className="text-[8px]">✨</span>
+              </div>
+              TRENDING
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <Header />
       
       <main className="max-w-7xl mx-auto px-4 pb-20 relative z-20">
@@ -86,24 +105,6 @@ const Index = () => {
             </>
           )}
         </nav>
-
-        {/* Viral Stickers */}
-        <div className="flex justify-center mb-6">
-          <div className="flex gap-3 flex-wrap justify-center">
-            <div className="bg-gradient-to-r from-pink-500 to-red-500 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transform rotate-3 hover:rotate-6 transition-transform border-2 border-white">
-              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center mb-1 mx-auto">
-                <span className="text-xs">🔥</span>
-              </div>
-              VIRAL
-            </div>
-            <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-lg transform -rotate-2 hover:-rotate-6 transition-transform border-2 border-white">
-              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center mb-1 mx-auto">
-                <span className="text-xs">✨</span>
-              </div>
-              TRENDING
-            </div>
-          </div>
-        </div>
 
         {/* Category Filter */}
         <div className="mb-6">
