@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -69,6 +70,16 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			keyframes: {
+				'confetti-fall': {
+					'0%': {
+						transform: 'translateY(-100vh) rotate(0deg)',
+						opacity: '1'
+					},
+					'100%': {
+						transform: 'translateY(100vh) rotate(360deg)',
+						opacity: '0'
+					}
+				},
 				'accordion-down': {
 					from: {
 						height: '0'
@@ -87,6 +98,7 @@ export default {
 				}
 			},
 			animation: {
+				'confetti-fall': 'confetti-fall linear infinite',
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
 			}

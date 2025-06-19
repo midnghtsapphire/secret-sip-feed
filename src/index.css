@@ -104,6 +104,22 @@
   }
 }
 
+/* Confetti animation */
+.confetti-piece {
+  animation: confetti-fall linear infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
 /* Custom gradients for drink themes */
 .gradient-pink {
   background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);

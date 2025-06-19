@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import CategoryFilter from '../components/CategoryFilter';
 import DrinkCard from '../components/DrinkCard';
 import FloatingAddButton from '../components/FloatingAddButton';
+import ConfettiRain from '../components/ConfettiRain';
 import SEOHead from '../components/SEOHead';
 import { useRecipes } from '../hooks/useRecipes';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -60,12 +60,13 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 relative">
+      <ConfettiRain />
       <SEOHead structuredData={structuredData} />
       
       <Header />
       
-      <main className="max-w-7xl mx-auto px-4 pb-20">
+      <main className="max-w-7xl mx-auto px-4 pb-20 relative z-20">
         {/* Breadcrumbs for SEO */}
         <nav className="mb-4 text-sm text-gray-600">
           <span>Home</span>
