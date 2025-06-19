@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -98,82 +97,57 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       cleanDescription = `Delicious ${cleanName.toLowerCase()} recipe imported from ${extractedRecipe.source || 'social media'}`;
     }
 
-    // Build meaningful instructions with filtered content
-    let instructionsText = '';
+    // Use the pre-processed instructions from the extraction
+    let instructionsText = extractedRecipe.instructions || '';
     
-    // Filter and clean ingredients
-    let meaningfulIngredients = [];
-    if (extractedRecipe.ingredients && Array.isArray(extractedRecipe.ingredients)) {
-      meaningfulIngredients = extractedRecipe.ingredients
-        .map(ing => cleanContent(ing))
-        .filter(ing => ing.length > 2 && !ing.includes('tiktokcdn'));
-    }
-    
-    // Filter and clean instructions  
-    let meaningfulInstructions = [];
-    if (extractedRecipe.instructions && Array.isArray(extractedRecipe.instructions)) {
-      meaningfulInstructions = filterInstructions(extractedRecipe.instructions)
-        .map(inst => cleanContent(inst))
-        .filter(inst => inst.length > 5);
-    }
-    
-    // Clean the full content/description
-    let cleanedContent = '';
-    if (extractedRecipe.content && extractedRecipe.content.length > 50) {
-      cleanedContent = cleanContent(extractedRecipe.content);
-    }
-    
-    // Clean additional text
-    let cleanedText = '';
-    if (extractedRecipe.text && extractedRecipe.text.length > 20) {
-      cleanedText = cleanContent(extractedRecipe.text);
-    }
-    
-    // Build the final instructions
-    if (meaningfulIngredients.length > 0) {
-      instructionsText += 'INGREDIENTS:\n';
-      meaningfulIngredients.forEach(ingredient => {
-        instructionsText += `• ${ingredient}\n`;
+    // If we have menu items, ensure they're prominently displayed
+    if (extractedRecipe.menuItems && extractedRecipe.menuItems.length > 0) {
+      console.log('Found menu items:', extractedRecipe.menuItems);
+      
+      // Build a detailed menu items section
+      let menuItemsSection = 'MENU ITEMS IDENTIFIED:\n';
+      const grouped = extractedRecipe.menuItems.reduce((acc, item) => {
+        if (!acc[item.type]) acc[item.type] = [];
+        acc[item.type].push(item);
+        return acc;
+      }, {});
+      
+      Object.entries(grouped).forEach(([type, items]: [string, any[]]) => {
+        menuItemsSection += `\n${type.toUpperCase()}S:\n`;
+        items.forEach(item => {
+          menuItemsSection += `• ${item.name}${item.quantity ? ` (${item.quantity})` : ''}\n`;
+        });
       });
-      instructionsText += '\n';
-    }
-    
-    if (meaningfulInstructions.length > 0) {
-      instructionsText += 'INSTRUCTIONS:\n';
-      meaningfulInstructions.forEach((instruction, index) => {
-        instructionsText += `${index + 1}. ${instruction}\n`;
-      });
-      instructionsText += '\n';
-    }
-    
-    // Add cleaned content if meaningful
-    if (cleanedContent && cleanedContent.length > 30) {
-      instructionsText += 'RECIPE DETAILS:\n';
-      instructionsText += cleanedContent + '\n\n';
-    }
-    
-    // Add additional meaningful text
-    if (cleanedText && cleanedText.length > 20 && cleanedText !== cleanedContent) {
-      instructionsText += 'ADDITIONAL NOTES:\n';
-      instructionsText += cleanedText + '\n\n';
+      
+      // Prepend menu items section to instructions
+      if (!instructionsText.includes('MENU ITEMS')) {
+        instructionsText = menuItemsSection + '\n' + instructionsText;
+      }
     }
     
     // Fallback if no meaningful content
     if (!instructionsText.trim() || instructionsText.length < 50) {
       instructionsText = `RECIPE: ${cleanName}\n\n`;
       instructionsText += `This ${cleanName.toLowerCase()} recipe was imported from ${extractedRecipe.source || 'social media'}.\n\n`;
+      
+      if (extractedRecipe.menuItems && extractedRecipe.menuItems.length > 0) {
+        instructionsText += 'MENU ITEMS:\n';
+        extractedRecipe.menuItems.forEach(item => {
+          instructionsText += `• ${item.name}${item.quantity ? ` (${item.quantity})` : ''}\n`;
+        });
+        instructionsText += '\n';
+      }
+      
       instructionsText += 'PREPARATION:\n';
       instructionsText += 'Please refer to the original post for complete ingredient measurements and detailed preparation steps.\n\n';
-      instructionsText += 'NOTES:\n';
-      instructionsText += '• Check the original source for exact quantities\n';
-      instructionsText += '• Adjust sweetness to taste\n';
-      instructionsText += '• Serve immediately for best results\n\n';
     }
     
     // Add source attribution
-    instructionsText += `\n---\nImported from: ${extractedRecipe.source || 'Social Media'}`;
-    if (extractedRecipe.originalUrl) {
-      instructionsText += `\nOriginal URL: ${extractedRecipe.originalUrl}`;
+    if (!instructionsText.includes('Imported from:')) {
+      instructionsText += `\n---\nImported from: ${extractedRecipe.source || 'Social Media'}`;
+      if (extractedRecipe.originalUrl) {
+        instructionsText += `\nOriginal URL: ${extractedRecipe.originalUrl}`;
+      }
     }
     
     console.log('Final cleaned instructions:', instructionsText);
@@ -203,16 +177,25 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     
     tags.push('Imported', extractedRecipe.source || 'SocialMedia');
     
+    // Add menu item types as tags
+    if (extractedRecipe.menuItems && extractedRecipe.menuItems.length > 0) {
+      const menuItemTypes = [...new Set(extractedRecipe.menuItems.map(item => item.type))];
+      tags.push(...menuItemTypes);
+    }
+    
     if (extractedRecipe.category === 'Pink Drinks') {
       tags.push('Pink', 'Fruity');
     }
     
     form.setValue('tags', tags.join(', '));
 
-    // Set estimated pricing
-    const estimatedPrice = meaningfulIngredients.length 
-      ? Math.max(4.50, meaningfulIngredients.length * 0.75)
-      : 5.50;
+    // Set estimated pricing based on menu items
+    let estimatedPrice = 5.50; // base price
+    if (extractedRecipe.menuItems && extractedRecipe.menuItems.length > 0) {
+      // Add estimated cost for each menu item type
+      const uniqueItems = [...new Set(extractedRecipe.menuItems.map(item => item.name))];
+      estimatedPrice = Math.max(4.50, 4.50 + (uniqueItems.length * 0.65));
+    }
     form.setValue('base_price', estimatedPrice);
 
     form.setValue('difficulty_level', 2);
