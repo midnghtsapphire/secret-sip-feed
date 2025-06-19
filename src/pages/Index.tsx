@@ -6,9 +6,11 @@ import CategoryFilter from '../components/CategoryFilter';
 import DrinkCard from '../components/DrinkCard';
 import FloatingAddButton from '../components/FloatingAddButton';
 import SEOHead from '../components/SEOHead';
+import { useRecipes } from '../hooks/useRecipes';
 
 const Index = () => {
   const [activeCategory, setActiveCategory] = useState('All');
+  const { recipes, isLoading } = useRecipes();
 
   const categories = [
     'All',
@@ -20,94 +22,12 @@ const Index = () => {
     'Foam Experts'
   ];
 
-  const mockDrinks = [
-    {
-      id: '1',
-      name: 'Pink Drink Cloud Foam Remix',
-      imageUrl: 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop',
-      category: 'Pink Drinks',
-      tags: ['SecretMenu', 'FoamQueen', 'Viral'],
-      saves: 12543,
-      isTrending: true,
-      description: 'TikTok famous pink drink with extra coconut milk and vanilla cold foam swirl',
-      price: '$6.50'
-    },
-    {
-      id: '2',
-      name: 'Icy Blue Paradise Refresher',
-      imageUrl: 'https://images.unsplash.com/photo-1721322800607-8c38375eef04?w=400&h=300&fit=crop',
-      category: 'Blue Drinks',
-      tags: ['BlueVibes', 'Refreshing', 'Summer'],
-      saves: 8921,
-      isTrending: true,
-      description: 'Bright blue refresher with pineapple pieces and coconut flakes from Lemon8',
-      price: '$5.75'
-    },
-    {
-      id: '3',
-      name: 'Matcha Cold Foam Dream',
-      imageUrl: 'https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=400&h=300&fit=crop',
-      category: 'Green Teas',
-      tags: ['MatchaHack', 'HealthyVibes', 'Instagram'],
-      saves: 15234,
-      description: 'Layered matcha latte with sweet cream cold foam and brown sugar syrup',
-      price: '$7.25'
-    },
-    {
-      id: '4',
-      name: 'Caramel Cloud Macchiato',
-      imageUrl: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=400&h=300&fit=crop',
-      category: 'Foam Experts',
-      tags: ['FoamArt', 'Caramel', 'Cozy'],
-      saves: 9876,
-      description: 'Extra caramel drizzle with thick vanilla cold foam and cinnamon dust',
-      price: '$6.85'
-    },
-    {
-      id: '5',
-      name: 'Sunset Ombre Frappuccino',
-      imageUrl: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?w=400&h=300&fit=crop',
-      category: 'Pink Drinks',
-      tags: ['Aesthetic', 'Layered', 'PhotoWorthy'],
-      saves: 11432,
-      description: 'Instagram-worthy ombre effect with strawberry, mango, and passion fruit',
-      price: '$6.95'
-    },
-    {
-      id: '6',
-      name: 'Ocean Breeze Cold Brew',
-      imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&h=300&fit=crop',
-      category: 'Blue Drinks',
-      tags: ['ColdBrew', 'Oceanic', 'TikTok'],
-      saves: 7654,
-      description: 'Blue spirulina cold brew with coconut cream foam and sea salt rim',
-      price: '$5.25'
-    },
-    {
-      id: '7',
-      name: 'Pink Drink Hack',
-      imageUrl: 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=300&h=200&fit=crop',
-      category: 'Budget Babe Brews',
-      tags: ['Budget', 'PinkVibes', 'Under5'],
-      saves: 4521,
-      description: 'Iced Passion Tango Tea with coconut milk and vanilla - looks like Pink Drink!',
-      price: '$2.95'
-    },
-    {
-      id: '8',
-      name: 'Strawberry Foam Water',
-      imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop',
-      category: 'Budget Babe Brews',
-      tags: ['Budget', 'LowCal', 'Under3'],
-      saves: 3245,
-      description: 'Ice water with freeze-dried strawberries and vanilla sweet cream foam',
-      price: '$1.85'
-    }
-  ];
-
-  const filteredDrinks = activeCategory === 'All' 
-    ? mockDrinks 
-    : mockDrinks.filter(drink => drink.category === activeCategory);
+  // Filter recipes based on active category and only show public recipes
+  const filteredRecipes = recipes?.filter(recipe => {
+    if (!recipe.is_public) return false;
+    if (activeCategory === 'All') return true;
+    return recipe.category === activeCategory;
+  }) || [];
 
   const structuredData = {
     "@context": "https://schema.org/",
@@ -165,25 +85,62 @@ const Index = () => {
             </p>
           )}
           <p className="text-gray-600 text-sm">
-            {filteredDrinks.length} viral recipe{filteredDrinks.length !== 1 ? 's' : ''} found
+            {isLoading 
+              ? 'Loading recipes...' 
+              : `${filteredRecipes.length} viral recipe${filteredRecipes.length !== 1 ? 's' : ''} found`
+            }
           </p>
         </div>
         
-        {/* Drinks Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredDrinks.map((drink) => (
-            <Link key={drink.id} to={`/drink/${drink.id}`} className="block">
-              <DrinkCard {...drink} />
-            </Link>
-          ))}
-        </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+          </div>
+        )}
         
-        {/* Load More */}
-        <div className="text-center mt-8">
-          <button className="bg-white text-gray-700 px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all">
-            Load More Recipes ✨
-          </button>
-        </div>
+        {/* Empty State */}
+        {!isLoading && filteredRecipes.length === 0 && (
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">🥤</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              No recipes found
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {activeCategory === 'All' 
+                ? "Be the first to add a viral recipe! Click the + button to get started."
+                : `No recipes found in ${activeCategory}. Try a different category or add your own!`
+              }
+            </p>
+            <Link 
+              to="/recipes" 
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 transition-all"
+            >
+              Add First Recipe ✨
+            </Link>
+          </div>
+        )}
+        
+        {/* Recipes Grid */}
+        {!isLoading && filteredRecipes.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredRecipes.map((recipe) => (
+              <Link key={recipe.id} to={`/drink/${recipe.id}`} className="block">
+                <DrinkCard 
+                  id={recipe.id}
+                  name={recipe.name}
+                  imageUrl={recipe.image_url || '/placeholder.svg'}
+                  category={recipe.category}
+                  tags={recipe.tags || []}
+                  saves={recipe.saves_count || 0}
+                  isTrending={recipe.saves_count && recipe.saves_count > 100}
+                  description={recipe.description || ''}
+                  price={recipe.base_price ? `$${recipe.base_price}` : undefined}
+                />
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* SEO Content Section */}
         <section className="mt-16 bg-white rounded-2xl p-8 shadow-lg">
