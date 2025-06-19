@@ -12,7 +12,12 @@ interface ExtractedRecipe {
   description: string;
   imageUrl: string;
   ingredients?: string[];
-  instructions?: string[];
+  instructions?: string;
+  menuItems?: Array<{
+    name: string;
+    type: string;
+    quantity?: string;
+  }>;
   tags?: string[];
   category: string;
   source: string;
@@ -66,11 +71,12 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
         throw error;
       }
 
-      if (data?.recipe) {
-        setExtractedRecipe(data.recipe);
+      // The edge function returns the recipe data directly, not wrapped in a recipe property
+      if (data && data.name) {
+        setExtractedRecipe(data);
         toast({
           title: "Recipe Extracted!",
-          description: `Successfully extracted "${data.recipe.name}" from ${data.recipe.source}`,
+          description: `Successfully extracted "${data.name}" from ${data.source}`,
         });
       } else {
         throw new Error('No recipe data received');
