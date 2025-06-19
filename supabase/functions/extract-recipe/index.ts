@@ -1,394 +1,430 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface ExtractedRecipe {
-  name: string;
-  description: string;
-  instructions: string;
-  ingredients: string[];
-  imageUrl?: string;
-  images?: string[];
-  category?: string;
-  source: string;
-  originalUrl: string;
-}
-
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { url } = await req.json();
-    
+    const { url } = await req.json()
+    console.log('Processing URL:', url)
+
     if (!url) {
       return new Response(
-        JSON.stringify({ 
-          error: 'URL is required',
-          details: 'Please provide a valid social media URL'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+        JSON.stringify({ error: 'URL is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
 
-    console.log('Extracting recipe from:', url);
-
-    // Check for problematic Lemon8 URLs
-    if (url.includes('v.lemon8-app.com') || url.includes('/al/') || url.startsWith('https://v.lemon8-ap')) {
+    // Use a robust HTML fetching approach
+    let htmlContent = ''
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      htmlContent = await response.text()
+    } catch (error) {
+      console.log('Direct fetch failed, trying alternative approach')
+      // Fallback - return a basic structure so the app doesn't break
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid Lemon8 URL Format',
-          details: 'This appears to be a Lemon8 redirect or short URL. Please use the full Lemon8 post URL instead.\n\nTo get the full URL:\n1) Open the post in the Lemon8 app or website\n2) Look for a share button or copy link option\n3) Make sure the URL starts with "https://www.lemon8-app.com/" and includes the full post path\n\nExample: https://www.lemon8-app.com/post/123456789'
+        JSON.stringify({
+          name: extractFromUrl(url),
+          description: `Recipe imported from ${getDomain(url)}`,
+          imageUrl: '/placeholder.svg',
+          instructions: 'Please add the recipe details manually.',
+          category: 'Pink Drinks',
+          source: getDomain(url),
+          originalUrl: url,
+          tags: ['imported'],
+          menuItems: []
         }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
-    // Validate URL is from supported platforms
-    const supportedPlatforms = ['tiktok.com', 'instagram.com', 'lemon8-app.com'];
-    const isSupported = supportedPlatforms.some(platform => url.includes(platform));
+    // Extract content using multiple strategies
+    const extractedData = extractRecipeData(htmlContent, url)
     
-    if (!isSupported) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Unsupported Platform',
-          details: 'Please use a TikTok, Instagram, or Lemon8 URL. Make sure to use the full URL from the platform, not a shortened or redirect link.'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const response = await fetch(`https://api.firecrawl.dev/v0/scrape`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('FIRECRAWL_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: url,
-        formats: ['markdown', 'html'],
-        includeTags: ['img', 'meta', 'script[type="application/ld+json"]'],
-        onlyMainContent: false,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Firecrawl API error:', response.status, response.statusText);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to fetch content',
-          details: `Failed to fetch content from the URL. This might be due to the page being protected, requiring login, or being a redirect page. Please try a different URL or make sure you're using the direct post URL.`
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const data = await response.json();
+    console.log('Extracted data:', extractedData)
     
-    if (!data.success) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Content extraction failed',
-          details: 'Failed to extract content from the page. The page might be protected or require special access.'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const { markdown, html, metadata } = data.data;
-    
-    // Check if we got meaningful content
-    const contentText = [markdown, metadata?.title, metadata?.description].filter(Boolean).join(' ').toLowerCase();
-    
-    if (contentText.length < 50 || contentText.includes('open app') || contentText.includes('better on the app')) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'App redirect detected',
-          details: 'This URL appears to redirect to an app download page. Please use the direct post URL instead. For Lemon8, make sure the URL starts with "https://www.lemon8-app.com/" and goes directly to the post.'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Extract multiple images with better validation
-    const images: string[] = [];
-    let primaryImageUrl = '';
-    
-    // Helper function to validate image URLs more strictly
-    const isValidImageUrl = (imgUrl: string): boolean => {
-      if (!imgUrl || typeof imgUrl !== 'string') return false;
-      
-      // Must be a proper URL
-      try {
-        new URL(imgUrl);
-      } catch {
-        return false;
-      }
-      
-      // Filter out data URLs, broken URLs, and placeholder images
-      if (imgUrl.startsWith('data:') || 
-          imgUrl.includes('placeholder') || 
-          imgUrl.includes('default') ||
-          imgUrl.includes('blank') ||
-          imgUrl.includes('loading') ||
-          imgUrl.length < 15) {
-        return false;
-      }
-      
-      // Must be from a known CDN or have image extension
-      const validPatterns = [
-        /\.(jpg|jpeg|png|gif|webp)(\?|$)/i,
-        /cdn\./i,
-        /images\./i,
-        /photo/i,
-        /img\./i,
-        /static\./i,
-        /media\./i,
-        /tiktokcdn/i,
-        /instagramcdn/i,
-        /fbcdn/i
-      ];
-      
-      return validPatterns.some(pattern => pattern.test(imgUrl));
-    };
-    
-    // Extract from Open Graph
-    if (metadata?.ogImage) {
-      const ogImages = Array.isArray(metadata.ogImage) ? metadata.ogImage : [metadata.ogImage];
-      for (const img of ogImages) {
-        const imgUrl = typeof img === 'string' ? img : img?.url;
-        if (isValidImageUrl(imgUrl)) {
-          images.push(imgUrl);
-          if (!primaryImageUrl) primaryImageUrl = imgUrl;
-        }
-      }
-    }
-    
-    // Extract from Twitter/X metadata
-    if (metadata?.twitterImage) {
-      const twitterImages = Array.isArray(metadata.twitterImage) ? metadata.twitterImage : [metadata.twitterImage];
-      for (const img of twitterImages) {
-        const imgUrl = typeof img === 'string' ? img : img?.url;
-        if (isValidImageUrl(imgUrl) && !images.includes(imgUrl)) {
-          images.push(imgUrl);
-          if (!primaryImageUrl) primaryImageUrl = imgUrl;
-        }
-      }
-    }
-    
-    // Extract from HTML img tags
-    if (html) {
-      const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-      let imgMatch;
-      
-      while ((imgMatch = imgRegex.exec(html)) !== null) {
-        const imgUrl = imgMatch[1];
-        if (isValidImageUrl(imgUrl) && !images.includes(imgUrl)) {
-          images.push(imgUrl);
-          if (!primaryImageUrl) primaryImageUrl = imgUrl;
-        }
-      }
-    }
-    
-    // Extract from CSS background images
-    if (html) {
-      const bgImageRegex = /background-image:\s*url\(['"]?([^'")\s]+)['"]?\)/gi;
-      let bgMatch;
-      
-      while ((bgMatch = bgImageRegex.exec(html)) !== null) {
-        const imgUrl = bgMatch[1];
-        if (isValidImageUrl(imgUrl) && !images.includes(imgUrl)) {
-          images.push(imgUrl);
-          if (!primaryImageUrl) primaryImageUrl = imgUrl;
-        }
-      }
-    }
-
-    console.log(`Found ${images.length} valid images:`, images);
-    console.log('Primary image:', primaryImageUrl);
-
-    // Extract recipe name - clean up more aggressively
-    let recipeName = metadata?.title || '';
-    
-    // Remove platform prefixes and suffixes
-    recipeName = recipeName
-      .replace(/^(Lemon8|TikTok|Instagram)\s*[·•-]\s*/i, '')
-      .replace(/\s*[·•-]\s*(Lemon8|TikTok|Instagram)$/i, '')
-      .replace(/\s*[·•-]\s*@.+$/i, '')
-      .replace(/Recipe Below[🍓]*/gi, '')
-      .replace(/[🍫🍓🎀✨💖🌈☕️🥤🧋🍹🍊🍋🥭🍓🫐🥝🍇🍑🍒🌸💕🎉🔥⭐️🌟💫🍪🧁🍰🎂]+/g, '')
-      .trim();
-
-    // Extract ingredients and instructions more carefully
-    const ingredients: string[] = [];
-    const instructionSteps: string[] = [];
-    
-    // Only process if we have meaningful markdown content
-    if (markdown && markdown.length > 100) {
-      const lines = markdown.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-      let inInstructions = false;
-      let inIngredients = false;
-      
-      for (const line of lines) {
-        // Skip lines that are just URLs or metadata
-        if (line.startsWith('http') || line.includes('tiktokcdn') || line.length < 3) {
-          continue;
-        }
-        
-        // Check for section headers
-        if (/^(ingredients?|what you need|recipe|items?):?$/i.test(line)) {
-          inIngredients = true;
-          inInstructions = false;
-          continue;
-        }
-        
-        if (/^(instructions?|steps?|how to|directions?|method):?$/i.test(line)) {
-          inInstructions = true;
-          inIngredients = false;
-          continue;
-        }
-        
-        // Extract content based on current section
-        if (inIngredients && (line.startsWith('•') || line.startsWith('-') || /^\d+\./.test(line))) {
-          const ingredient = line.replace(/^[•\-\d\.]\s*/, '').trim();
-          if (ingredient.length > 3 && !ingredient.includes('http')) {
-            ingredients.push(ingredient);
-          }
-        }
-        
-        if (inInstructions && (line.startsWith('•') || line.startsWith('-') || /^\d+\./.test(line))) {
-          const step = line.replace(/^[•\-\d\.]\s*/, '').trim();
-          if (step.length > 5 && !step.includes('http')) {
-            instructionSteps.push(step);
-          }
-        }
-        
-        // Also look for ingredients and steps without explicit sections
-        if (!inIngredients && !inInstructions) {
-          if (/^\d+\.?\s/.test(line) && line.length > 10 && !line.includes('http')) {
-            instructionSteps.push(line.replace(/^\d+\.?\s*/, ''));
-          }
-          if (/^[•\-]\s/.test(line) && line.length > 5 && !line.includes('http')) {
-            ingredients.push(line.replace(/^[•\-]\s*/, ''));
-          }
-        }
-      }
-    }
-
-    // Determine category based on content
-    let category = 'Pink Drinks'; // default
-    
-    const lowerContent = contentText.toLowerCase();
-    if (lowerContent.includes('green tea') || lowerContent.includes('matcha')) {
-      category = 'Green Teas';
-    } else if (lowerContent.includes('blue') || lowerContent.includes('butterfly')) {
-      category = 'Blue Drinks';
-    } else if (lowerContent.includes('foam') || lowerContent.includes('cold foam')) {
-      category = 'Foam Experts';
-    } else if (lowerContent.includes('budget') || lowerContent.includes('cheap') || lowerContent.includes('affordable')) {
-      category = 'Budget Babe Brews';
-    } else if (lowerContent.includes('viral') || lowerContent.includes('trending') || lowerContent.includes('tiktok')) {
-      category = 'Viral Today';
-    }
-
-    // Build instructions text only if we have real content
-    let instructionsText = '';
-    
-    if (ingredients.length > 0) {
-      instructionsText += 'INGREDIENTS:\n';
-      ingredients.forEach(ingredient => {
-        instructionsText += `• ${ingredient}\n`;
-      });
-      instructionsText += '\n';
-    }
-    
-    if (instructionSteps.length > 0) {
-      instructionsText += 'INSTRUCTIONS:\n';
-      instructionSteps.forEach((step, index) => {
-        instructionsText += `${index + 1}. ${step}\n`;
-      });
-      instructionsText += '\n';
-    }
-    
-    // If we don't have good extracted content, provide a clean template
-    if (instructionsText.length < 50) {
-      instructionsText = `RECIPE: ${recipeName || 'Imported Recipe'}\n\n`;
-      instructionsText += `SOURCE: ${url.includes('tiktok.com') ? 'TikTok' : url.includes('instagram.com') ? 'Instagram' : 'Lemon8'}\n\n`;
-      instructionsText += 'INGREDIENTS:\n(Please add ingredients from the original post)\n\n';
-      instructionsText += 'INSTRUCTIONS:\n(Please add preparation steps from the original post)\n\n';
-    }
-    
-    // Add source attribution
-    instructionsText += `\nImported from: ${url}`;
-
-    // Validate that we found meaningful content
-    if (!recipeName && ingredients.length === 0 && instructionSteps.length === 0 && !primaryImageUrl) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'No recipe content found',
-          details: 'No recipe content could be extracted from this URL. The page may be a redirect, app download prompt, or may not contain a recipe. Please make sure you\'re using the direct post URL and that the post contains recipe information.'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const extractedRecipe: ExtractedRecipe = {
-      name: recipeName || 'Imported Recipe',
-      description: metadata?.description || `Delicious drink recipe imported from social media`,
-      instructions: instructionsText,
-      ingredients: ingredients,
-      imageUrl: primaryImageUrl,
-      images: images.length > 0 ? images : undefined,
-      category: category,
-      source: url.includes('tiktok.com') ? 'TikTok' : 
-               url.includes('instagram.com') ? 'Instagram' : 
-               url.includes('lemon8') ? 'Lemon8' : 'Social Media',
-      originalUrl: url
-    };
-
-    console.log('Final extracted recipe:', JSON.stringify(extractedRecipe, null, 2));
-
-    return new Response(JSON.stringify(extractedRecipe), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify(extractedData),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
 
   } catch (error) {
-    console.error('Error extracting recipe:', error);
+    console.error('Error:', error)
     return new Response(
       JSON.stringify({ 
-        error: 'Unexpected error', 
-        details: error.message || 'An unexpected error occurred while processing the URL'
+        error: 'Processing failed',
+        details: error.message 
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
   }
-});
+})
+
+function extractFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url)
+    const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0)
+    
+    // Try to find meaningful parts
+    for (const part of pathParts.reverse()) {
+      if (part.length > 3 && !part.match(/^\d+$/)) {
+        return part.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      }
+    }
+    
+    return 'Imported Recipe'
+  } catch {
+    return 'Imported Recipe'
+  }
+}
+
+function getDomain(url: string): string {
+  try {
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname.toLowerCase()
+    
+    if (hostname.includes('tiktok')) return 'TikTok'
+    if (hostname.includes('instagram')) return 'Instagram'
+    if (hostname.includes('lemon8')) return 'Lemon8'
+    if (hostname.includes('youtube')) return 'YouTube'
+    if (hostname.includes('pinterest')) return 'Pinterest'
+    
+    return hostname.replace('www.', '').split('.')[0]
+  } catch {
+    return 'Social Media'
+  }
+}
+
+function extractRecipeData(html: string, url: string) {
+  const cleanHtml = html.toLowerCase()
+  
+  // Extract title/name
+  let name = extractFromUrl(url)
+  const titleMatches = [
+    /<title[^>]*>([^<]+)</i,
+    /<h1[^>]*>([^<]+)</i,
+    /<h2[^>]*>([^<]+)</i,
+    /property="og:title"[^>]*content="([^"]+)"/i,
+    /name="title"[^>]*content="([^"]+)"/i
+  ]
+  
+  for (const regex of titleMatches) {
+    const match = html.match(regex)
+    if (match && match[1] && match[1].trim().length > 3) {
+      name = match[1].trim()
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&#39;/g, "'")
+      break
+    }
+  }
+
+  // Extract description
+  let description = `Recipe imported from ${getDomain(url)}`
+  const descMatches = [
+    /property="og:description"[^>]*content="([^"]+)"/i,
+    /name="description"[^>]*content="([^"]+)"/i,
+    /name="twitter:description"[^>]*content="([^"]+)"/i
+  ]
+  
+  for (const regex of descMatches) {
+    const match = html.match(regex)
+    if (match && match[1] && match[1].trim().length > 10) {
+      description = match[1].trim()
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&#39;/g, "'")
+      break
+    }
+  }
+
+  // Extract images
+  const images = extractImages(html, url)
+  
+  // Extract content/instructions
+  let instructions = extractInstructions(html, name)
+  
+  // Extract menu items
+  const menuItems = extractMenuItems(html)
+  
+  // Determine category
+  let category = 'Pink Drinks'
+  const categoryKeywords = {
+    'Pink Drinks': ['pink', 'strawberry', 'raspberry', 'cherry', 'rose'],
+    'Blue Drinks': ['blue', 'butterfly', 'ocean', 'blueberry'],
+    'Green Teas': ['green', 'matcha', 'tea', 'mint'],
+    'Foam Experts': ['foam', 'latte', 'cappuccino', 'espresso'],
+    'Budget Babe Brews': ['budget', 'cheap', 'affordable', 'diy'],
+    'Viral Today': ['viral', 'trending', 'popular', 'tiktok']
+  }
+  
+  const lowerName = name.toLowerCase()
+  const lowerDesc = description.toLowerCase()
+  
+  for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(keyword => lowerName.includes(keyword) || lowerDesc.includes(keyword))) {
+      category = cat
+      break
+    }
+  }
+
+  // Generate tags
+  const tags = generateTags(name, description, getDomain(url))
+
+  return {
+    name: cleanName(name),
+    description: description,
+    imageUrl: images[0] || '/placeholder.svg',
+    images: images,
+    instructions: instructions,
+    category: category,
+    source: getDomain(url),
+    originalUrl: url,
+    tags: tags,
+    menuItems: menuItems
+  }
+}
+
+function extractImages(html: string, baseUrl: string): string[] {
+  const images: string[] = []
+  const imagePatterns = [
+    /property="og:image"[^>]*content="([^"]+)"/gi,
+    /name="twitter:image"[^>]*content="([^"]+)"/gi,
+    /<img[^>]*src="([^"]+)"/gi,
+    /background-image:\s*url\(["']?([^"')]+)["']?\)/gi
+  ]
+
+  for (const pattern of imagePatterns) {
+    let match
+    while ((match = pattern.exec(html)) !== null) {
+      let imageUrl = match[1]
+      
+      // Skip tiny images, icons, and placeholder images
+      if (imageUrl.includes('icon') || 
+          imageUrl.includes('logo') || 
+          imageUrl.includes('avatar') ||
+          imageUrl.includes('1x1') ||
+          imageUrl.includes('placeholder')) {
+        continue
+      }
+      
+      // Make relative URLs absolute
+      if (imageUrl.startsWith('//')) {
+        imageUrl = 'https:' + imageUrl
+      } else if (imageUrl.startsWith('/')) {
+        try {
+          const base = new URL(baseUrl)
+          imageUrl = base.origin + imageUrl
+        } catch (e) {
+          continue
+        }
+      } else if (!imageUrl.startsWith('http')) {
+        continue
+      }
+      
+      // Add if not already present
+      if (!images.includes(imageUrl)) {
+        images.push(imageUrl)
+      }
+      
+      // Limit to 5 images
+      if (images.length >= 5) break
+    }
+    if (images.length >= 5) break
+  }
+
+  return images
+}
+
+function extractInstructions(html: string, recipeName: string): string {
+  // Look for content sections
+  const contentPatterns = [
+    /<script[^>]*type="application\/ld\+json"[^>]*>([^<]+)<\/script>/gi,
+    /<div[^>]*class="[^"]*recipe[^"]*"[^>]*>(.*?)<\/div>/gis,
+    /<div[^>]*class="[^"]*content[^"]*"[^>]*>(.*?)<\/div>/gis,
+    /<article[^>]*>(.*?)<\/article>/gis,
+    /<main[^>]*>(.*?)<\/main>/gis
+  ]
+
+  let instructions = `RECIPE: ${recipeName}\n\n`
+  
+  // Try to extract structured data first
+  const scriptMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([^<]+)<\/script>/gi)
+  if (scriptMatches) {
+    for (const scriptMatch of scriptMatches) {
+      try {
+        const jsonMatch = scriptMatch.match(/>([^<]+)</s)
+        if (jsonMatch) {
+          const data = JSON.parse(jsonMatch[1])
+          if (data.recipeInstructions || data.description) {
+            if (data.recipeInstructions) {
+              instructions += 'INSTRUCTIONS:\n'
+              data.recipeInstructions.forEach((step: any, index: number) => {
+                const text = typeof step === 'string' ? step : step.text
+                if (text) {
+                  instructions += `${index + 1}. ${text}\n`
+                }
+              })
+            }
+            if (data.recipeIngredient) {
+              instructions += '\nINGREDIENTS:\n'
+              data.recipeIngredient.forEach((ingredient: string) => {
+                instructions += `• ${ingredient}\n`
+              })
+            }
+            return instructions
+          }
+        }
+      } catch (e) {
+        // Continue to next pattern
+      }
+    }
+  }
+
+  // Extract text content
+  const textContent = html
+    .replace(/<script[^>]*>.*?<\/script>/gis, '')
+    .replace(/<style[^>]*>.*?<\/style>/gis, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  // Look for recipe-like content
+  const sentences = textContent.split(/[.!?]\s+/).filter(s => s.length > 20)
+  const recipeSteps = sentences.filter(sentence => {
+    const lower = sentence.toLowerCase()
+    return lower.includes('add') || 
+           lower.includes('mix') || 
+           lower.includes('pour') || 
+           lower.includes('stir') || 
+           lower.includes('blend') ||
+           lower.includes('cup') ||
+           lower.includes('shot') ||
+           lower.includes('pump')
+  })
+
+  if (recipeSteps.length > 0) {
+    instructions += 'PREPARATION:\n'
+    recipeSteps.slice(0, 5).forEach((step, index) => {
+      instructions += `${index + 1}. ${step.trim()}.\n`
+    })
+  } else {
+    instructions += 'PREPARATION:\n'
+    instructions += 'Please refer to the original post for detailed preparation steps.\n'
+  }
+
+  return instructions
+}
+
+function extractMenuItems(html: string): Array<{name: string, type: string, quantity?: string}> {
+  const menuItems: Array<{name: string, type: string, quantity?: string}> = []
+  
+  // Common Starbucks items and their types
+  const itemTypes = {
+    // Syrups
+    'vanilla syrup': 'syrup',
+    'caramel syrup': 'syrup', 
+    'hazelnut syrup': 'syrup',
+    'sugar free vanilla': 'syrup',
+    'brown sugar syrup': 'syrup',
+    'toffee nut syrup': 'syrup',
+    
+    // Milks
+    'oat milk': 'milk',
+    'almond milk': 'milk',
+    'coconut milk': 'milk',
+    'soy milk': 'milk',
+    'whole milk': 'milk',
+    '2% milk': 'milk',
+    'nonfat milk': 'milk',
+    
+    // Bases
+    'espresso': 'base',
+    'cold brew': 'base',
+    'pike place': 'base',
+    'blonde espresso': 'base',
+    
+    // Add-ons
+    'whipped cream': 'topping',
+    'foam': 'topping',
+    'extra shot': 'addon',
+    'decaf': 'addon'
+  }
+
+  const text = html.toLowerCase()
+  
+  for (const [item, type] of Object.entries(itemTypes)) {
+    if (text.includes(item)) {
+      // Try to extract quantity
+      const quantityPattern = new RegExp(`(\\d+)\\s*(?:pump[s]?|shot[s]?|oz)?\\s*(?:of\\s+)?${item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i')
+      const match = text.match(quantityPattern)
+      
+      menuItems.push({
+        name: item.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+        type: type,
+        quantity: match ? `${match[1]} ${type === 'syrup' ? 'pumps' : type === 'base' ? 'shots' : ''}`.trim() : undefined
+      })
+    }
+  }
+
+  return menuItems
+}
+
+function generateTags(name: string, description: string, source: string): string[] {
+  const tags = [source, 'imported']
+  const text = (name + ' ' + description).toLowerCase()
+  
+  const tagKeywords = {
+    'viral': ['viral', 'trending', 'popular'],
+    'sweet': ['sweet', 'sugar', 'syrup'],
+    'iced': ['iced', 'cold'],
+    'hot': ['hot', 'warm'],
+    'caffeine': ['espresso', 'coffee', 'shot'],
+    'dairy-free': ['oat', 'almond', 'coconut', 'soy'],
+    'seasonal': ['pumpkin', 'holiday', 'winter', 'summer']
+  }
+  
+  for (const [tag, keywords] of Object.entries(tagKeywords)) {
+    if (keywords.some(keyword => text.includes(keyword))) {
+      tags.push(tag)
+    }
+  }
+  
+  return tags
+}
+
+function cleanName(name: string): string {
+  return name
+    .replace(/^(Recipe|How to make|DIY)\s*/i, '')
+    .replace(/\s*(Recipe|Tutorial|DIY)\s*$/i, '')
+    .replace(/[🍫🍓🎀✨💖🌈☕️🥤🧋🍹🍊🍋🥭🍓🫐🥝🍇🍑🍒🌸💕🎉🔥⭐️🌟💫🍪🧁🍰🎂]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}

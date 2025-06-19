@@ -4,6 +4,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ImageUpload from './ImageUpload';
 
 interface RecipeFormFieldsProps {
   form: any;
@@ -37,6 +38,24 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea placeholder="Describe your amazing recipe..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="images"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Recipe Images</FormLabel>
+              <FormControl>
+                <ImageUpload
+                  images={field.value || []}
+                  onImagesChange={field.onChange}
+                  maxImages={3}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -137,12 +156,16 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
 
       <FormField
         control={form.control}
-        name="image_url"
+        name="images"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Image URL</FormLabel>
+            <FormLabel>Recipe Images</FormLabel>
             <FormControl>
-              <Input placeholder="https://..." {...field} />
+              <ImageUpload
+                images={field.value || []}
+                onImagesChange={field.onChange}
+                maxImages={5}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
