@@ -35,8 +35,15 @@ serve(async (req) => {
 
     console.log('Extracting recipe from URL:', url);
 
-    // Extract recipe information directly
-    const extractedRecipe = await extractRecipeFromUrl(url);
+    // Extract recipe information from social media post
+    const extractedRecipe = await extractRecipeFromSocialMedia(url);
+
+    if (!extractedRecipe) {
+      return new Response(
+        JSON.stringify({ error: 'Could not extract recipe data from this URL. Please check the link and try again.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ recipe: extractedRecipe }),
@@ -47,7 +54,7 @@ serve(async (req) => {
     console.error('Error in extract-recipe function:', error);
     return new Response(
       JSON.stringify({ 
-        error: 'Failed to extract recipe', 
+        error: 'Failed to extract recipe from URL', 
         details: error.message
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -55,7 +62,7 @@ serve(async (req) => {
   }
 });
 
-async function extractRecipeFromUrl(originalUrl: string): Promise<ExtractedRecipe> {
+async function extractRecipeFromSocialMedia(originalUrl: string): Promise<ExtractedRecipe | null> {
   console.log('Fetching content from:', originalUrl);
   
   // Set up headers to mimic a real browser
@@ -81,99 +88,113 @@ async function extractRecipeFromUrl(originalUrl: string): Promise<ExtractedRecip
   const html = await response.text();
   console.log('HTML content length:', html.length);
 
-  // Extract content using enhanced parsing strategies
-  const extractedData = parseHtmlContent(html, originalUrl);
+  // Extract structured data and meta information
+  const extractedData = extractRealContent(html, originalUrl);
+  
+  // Only return if we found meaningful content
+  if (!extractedData || !isValidRecipeData(extractedData)) {
+    console.log('No valid recipe data found');
+    return null;
+  }
   
   return extractedData;
 }
 
-function parseHtmlContent(html: string, originalUrl: string): ExtractedRecipe {
-  console.log('Starting enhanced HTML parsing...');
+function extractRealContent(html: string, originalUrl: string): ExtractedRecipe | null {
+  console.log('Extracting real content from HTML...');
   
-  // Extract JSON-LD structured data
-  const jsonLdData = extractJsonLd(html);
-  console.log('JSON-LD data found:', !!jsonLdData);
+  // Extract platform-specific data
+  const platform = getPlatform(originalUrl);
+  console.log('Detected platform:', platform);
   
-  // Extract Next.js data
-  const nextJsData = extractNextJsData(html);
-  console.log('Next.js data found:', !!nextJsData);
-  
-  // Extract meta tags
-  const metaData = extractMetaData(html);
+  // Extract meta data (title, description, image)
+  const metaData = extractMetaTags(html);
   console.log('Meta data extracted:', Object.keys(metaData));
   
-  // Extract text content with better cleaning
-  const textContent = extractCleanTextContent(html);
-  console.log('Text content length:', textContent.length);
+  // Extract JSON-LD structured data
+  const jsonLdData = extractStructuredData(html);
+  console.log('Structured data found:', !!jsonLdData);
   
-  // Try to find recipe content in various data sources
-  let recipeData = null;
+  // Extract actual recipe content based on platform
+  const recipeContent = extractPlatformSpecificContent(html, platform);
+  console.log('Platform-specific content extracted:', !!recipeContent);
   
-  if (jsonLdData) {
-    recipeData = parseStructuredData(jsonLdData);
+  // Build recipe object from REAL extracted data only
+  const name = extractRecipeName(metaData, jsonLdData, recipeContent);
+  const description = extractDescription(metaData, jsonLdData, recipeContent);
+  const imageUrl = extractImageUrl(metaData, jsonLdData);
+  const tags = extractTags(html, platform);
+  
+  // Only proceed if we have meaningful extracted data
+  if (!name || name.length < 3) {
+    console.log('No valid recipe name found');
+    return null;
   }
   
-  if (!recipeData && nextJsData) {
-    recipeData = parseNextJsData(nextJsData);
+  if (!description || description.length < 10) {
+    console.log('No valid description found');
+    return null;
   }
   
-  if (!recipeData) {
-    recipeData = parseTextContent(textContent);
-  }
+  // Extract ingredients and instructions from actual content
+  const { ingredients, instructions } = extractRecipeSteps(recipeContent, metaData.description || '');
   
-  // Build final recipe object
-  const name = cleanRecipeName(
-    recipeData?.name || 
-    metaData.title || 
-    metaData.ogTitle || 
-    'Imported Recipe'
-  );
-  
-  const description = recipeData?.description || 
-    metaData.description || 
-    metaData.ogDescription || 
-    `Delicious ${name.toLowerCase()} recipe`;
-  
-  const imageUrl = recipeData?.image || 
-    metaData.ogImage || 
-    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=300&fit=crop';
-  
-  const ingredients = recipeData?.ingredients || [];
-  const instructions = recipeData?.instructions || [];
-  const tags = extractHashtags(textContent);
-  const category = determineCategory(name + ' ' + description + ' ' + textContent);
-  const source = determineSource(originalUrl);
-  
-  console.log('Final parsed data:', {
-    name: name.substring(0, 50),
-    ingredientsCount: ingredients.length,
-    instructionsCount: instructions.length,
-    source
-  });
-
   return {
-    name,
-    description,
-    imageUrl,
-    ingredients,
-    instructions,
-    tags: tags.length > 0 ? tags : ['Imported', source],
-    category,
-    source,
+    name: cleanText(name),
+    description: cleanText(description),
+    imageUrl: imageUrl || 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=300&fit=crop',
+    ingredients: ingredients.length > 0 ? ingredients : undefined,
+    instructions: instructions.length > 0 ? instructions : undefined,
+    tags: tags.length > 0 ? tags : undefined,
+    category: categorizeFromTags(tags, name + ' ' + description),
+    source: platform,
     originalUrl
   };
 }
 
-function extractJsonLd(html: string): any {
+function getPlatform(url: string): string {
+  if (url.includes('tiktok.com')) return 'TikTok';
+  if (url.includes('instagram.com')) return 'Instagram';
+  if (url.includes('lemon8')) return 'Lemon8';
+  return 'Social Media';
+}
+
+function extractMetaTags(html: string): Record<string, string> {
+  const meta: Record<string, string> = {};
+  
+  // Extract title
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleMatch) meta.title = titleMatch[1].trim();
+  
+  // Extract Open Graph and Twitter meta tags
+  const metaRegex = /<meta[^>]*(?:property|name)=["']([^"']+)["'][^>]*content=["']([^"']+)["'][^>]*\/?>/gi;
+  let match;
+  
+  while ((match = metaRegex.exec(html)) !== null) {
+    const key = match[1].toLowerCase().replace(/[:_]/g, '');
+    const value = match[2].trim();
+    if (value && value.length > 0) {
+      meta[key] = value;
+    }
+  }
+  
+  return meta;
+}
+
+function extractStructuredData(html: string): any {
   try {
     const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/gis;
-    const matches = html.matchAll(jsonLdRegex);
+    let match;
     
-    for (const match of matches) {
+    while ((match = jsonLdRegex.exec(html)) !== null) {
       try {
         const data = JSON.parse(match[1]);
-        if (data['@type'] === 'Recipe' || (Array.isArray(data) && data.some(item => item['@type'] === 'Recipe'))) {
-          return Array.isArray(data) ? data.find(item => item['@type'] === 'Recipe') : data;
+        if (data && (data['@type'] === 'Recipe' || data['@type'] === 'VideoObject' || data['@type'] === 'Article')) {
+          return data;
+        }
+        if (Array.isArray(data)) {
+          const recipeData = data.find(item => item['@type'] === 'Recipe' || item['@type'] === 'VideoObject');
+          if (recipeData) return recipeData;
         }
       } catch (e) {
         continue;
@@ -185,193 +206,187 @@ function extractJsonLd(html: string): any {
   return null;
 }
 
-function extractNextJsData(html: string): any {
-  try {
-    const nextDataRegex = /<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/is;
-    const match = html.match(nextDataRegex);
-    
-    if (match) {
-      const data = JSON.parse(match[1]);
-      return data?.props?.pageProps || data?.props || null;
-    }
-  } catch (error) {
-    console.log('Next.js data extraction failed:', error);
+function extractPlatformSpecificContent(html: string, platform: string): string {
+  // Remove script tags and other noise
+  let cleanHtml = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  
+  // Platform-specific content extraction
+  switch (platform) {
+    case 'TikTok':
+      // Extract from TikTok's specific content areas
+      const tiktokContent = cleanHtml.match(/<div[^>]*class="[^"]*video-meta[^"]*"[^>]*>[\s\S]*?<\/div>/i);
+      if (tiktokContent) return tiktokContent[0];
+      break;
+      
+    case 'Instagram':
+      // Extract from Instagram post content
+      const igContent = cleanHtml.match(/<meta property="og:description" content="([^"]+)"/i);
+      if (igContent) return igContent[1];
+      break;
+      
+    case 'Lemon8':
+      // Extract from Lemon8 specific areas
+      const lemon8Content = cleanHtml.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>[\s\S]*?<\/div>/i);
+      if (lemon8Content) return lemon8Content[0];
+      break;
   }
+  
+  // Fallback to extracting from common content areas
+  const contentAreas = [
+    /<article[^>]*>[\s\S]*?<\/article>/i,
+    /<main[^>]*>[\s\S]*?<\/main>/i,
+    /<div[^>]*class="[^"]*post[^"]*"[^>]*>[\s\S]*?<\/div>/i
+  ];
+  
+  for (const regex of contentAreas) {
+    const match = cleanHtml.match(regex);
+    if (match) return match[0];
+  }
+  
+  return cleanHtml;
+}
+
+function extractRecipeName(metaData: Record<string, string>, jsonLd: any, content: string): string {
+  // Try JSON-LD first
+  if (jsonLd?.name) return jsonLd.name;
+  
+  // Try meta tags
+  if (metaData.ogtitle) return metaData.ogtitle;
+  if (metaData.twittertitle) return metaData.twittertitle;
+  if (metaData.title) return metaData.title;
+  
+  // Extract from content
+  const contentText = content.replace(/<[^>]+>/g, ' ').trim();
+  const lines = contentText.split('\n').filter(line => line.trim().length > 5);
+  
+  // Look for recipe-like titles
+  for (const line of lines.slice(0, 3)) {
+    const cleanLine = line.trim();
+    if (cleanLine.length > 5 && cleanLine.length < 100) {
+      // Check if it looks like a recipe title
+      if (/recipe|drink|latte|coffee|tea|smoothie|beverage/i.test(cleanLine)) {
+        return cleanLine;
+      }
+    }
+  }
+  
+  return '';
+}
+
+function extractDescription(metaData: Record<string, string>, jsonLd: any, content: string): string {
+  // Try JSON-LD first
+  if (jsonLd?.description) return jsonLd.description;
+  
+  // Try meta tags
+  if (metaData.ogdescription && metaData.ogdescription.length > 20) return metaData.ogdescription;
+  if (metaData.twitterdescription && metaData.twitterdescription.length > 20) return metaData.twitterdescription;
+  if (metaData.description && metaData.description.length > 20) return metaData.description;
+  
+  // Extract meaningful content from text
+  const contentText = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  // Look for substantial paragraphs
+  const sentences = contentText.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  
+  for (const sentence of sentences.slice(0, 3)) {
+    const cleanSentence = sentence.trim();
+    if (cleanSentence.length > 30 && cleanSentence.length < 300) {
+      return cleanSentence;
+    }
+  }
+  
+  return '';
+}
+
+function extractImageUrl(metaData: Record<string, string>, jsonLd: any): string | null {
+  // Try JSON-LD first
+  if (jsonLd?.image) {
+    const image = Array.isArray(jsonLd.image) ? jsonLd.image[0] : jsonLd.image;
+    if (typeof image === 'string') return image;
+    if (image?.url) return image.url;
+  }
+  
+  // Try meta tags
+  if (metaData.ogimage && metaData.ogimage.startsWith('http')) return metaData.ogimage;
+  if (metaData.twitterimage && metaData.twitterimage.startsWith('http')) return metaData.twitterimage;
+  
   return null;
 }
 
-function extractMetaData(html: string): Record<string, string> {
-  const meta: Record<string, string> = {};
+function extractTags(html: string, platform: string): string[] {
+  const tags: string[] = [];
   
-  // Extract title
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch) meta.title = titleMatch[1];
+  // Extract hashtags from content
+  const hashtagRegex = /#(\w+)/g;
+  let match;
   
-  // Extract meta tags
-  const metaRegex = /<meta[^>]*(?:name|property)=["']([^"']+)["'][^>]*content=["']([^"']+)["'][^>]*\/?>/gi;
-  const metaMatches = html.matchAll(metaRegex);
-  
-  for (const match of metaMatches) {
-    const key = match[1].toLowerCase().replace(':', '');
-    meta[key] = match[2];
+  while ((match = hashtagRegex.exec(html)) !== null) {
+    const tag = match[1];
+    if (tag.length > 2 && !tags.includes(tag) && tags.length < 10) {
+      tags.push(tag);
+    }
   }
   
-  return meta;
+  // Add platform as tag
+  tags.push(platform);
+  
+  return tags;
 }
 
-function extractCleanTextContent(html: string): string {
-  return html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
+function extractRecipeSteps(content: string, description: string): { ingredients: string[], instructions: string[] } {
+  const ingredients: string[] = [];
+  const instructions: string[] = [];
+  
+  const fullText = (content + ' ' + description).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  
+  // Look for ingredient patterns
+  const ingredientPatterns = [
+    /(\d+(?:\.\d+)?\s*(?:cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ml|grams?|pumps?|shots?|scoops?)\s+[^.!?]+)/gi,
+    /(?:add|use|get|mix|pour)\s+([^.!?]{10,80}(?:syrup|milk|cream|ice|powder|extract|vanilla|caramel|coffee))/gi
+  ];
+  
+  for (const pattern of ingredientPatterns) {
+    let match;
+    while ((match = pattern.exec(fullText)) !== null && ingredients.length < 8) {
+      const ingredient = match[1].trim();
+      if (ingredient.length > 5 && !ingredients.includes(ingredient)) {
+        ingredients.push(ingredient);
+      }
+    }
+  }
+  
+  // Look for instruction patterns
+  const instructionPatterns = [
+    /(?:^|\n)\s*\d+[\.\)]\s*([^.!?\n]{15,150})/g,
+    /(?:first|then|next|after|finally)\s*[,:]?\s*([^.!?\n]{15,150})/gi
+  ];
+  
+  for (const pattern of instructionPatterns) {
+    let match;
+    while ((match = pattern.exec(fullText)) !== null && instructions.length < 8) {
+      const instruction = match[1].trim();
+      if (instruction.length > 10 && !instructions.includes(instruction)) {
+        instructions.push(instruction);
+      }
+    }
+  }
+  
+  return { ingredients, instructions };
+}
+
+function cleanText(text: string): string {
+  return text
+    .replace(/[🍫🍓🎀✨💖🌈☕️🥤🧋🍹🍊🍋🥭🫐🥝🍇🍑🍒🌸💕🎉🔥⭐️🌟💫🍪🧁🍰🎂]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function parseStructuredData(data: any): any {
-  try {
-    const recipe: any = {};
-    
-    if (data.name) recipe.name = data.name;
-    if (data.description) recipe.description = data.description;
-    if (data.image) {
-      recipe.image = typeof data.image === 'string' ? data.image : 
-        Array.isArray(data.image) ? data.image[0] : 
-        data.image.url || data.image['@id'];
-    }
-    
-    if (data.recipeIngredient && Array.isArray(data.recipeIngredient)) {
-      recipe.ingredients = data.recipeIngredient.map((ing: any) => 
-        typeof ing === 'string' ? ing : ing.text || ing.name || String(ing)
-      );
-    }
-    
-    if (data.recipeInstructions && Array.isArray(data.recipeInstructions)) {
-      recipe.instructions = data.recipeInstructions.map((inst: any) => {
-        if (typeof inst === 'string') return inst;
-        if (inst.text) return inst.text;
-        if (inst.name) return inst.name;
-        return String(inst);
-      });
-    }
-    
-    return recipe;
-  } catch (error) {
-    console.log('Structured data parsing failed:', error);
-    return null;
-  }
-}
-
-function parseNextJsData(data: any): any {
-  try {
-    // Look for recipe data in various possible locations
-    const findRecipeData = (obj: any, path = ''): any => {
-      if (!obj || typeof obj !== 'object') return null;
-      
-      // Check if current object looks like recipe data
-      if (obj.ingredients || obj.instructions || obj.recipe) {
-        return obj;
-      }
-      
-      // Recursively search
-      for (const [key, value] of Object.entries(obj)) {
-        if (typeof value === 'object' && value !== null) {
-          const found = findRecipeData(value, `${path}.${key}`);
-          if (found) return found;
-        }
-      }
-      
-      return null;
-    };
-    
-    return findRecipeData(data);
-  } catch (error) {
-    console.log('Next.js data parsing failed:', error);
-    return null;
-  }
-}
-
-function parseTextContent(text: string): any {
-  const lines = text.split(/[\n\r]+/).map(line => line.trim()).filter(line => line.length > 3);
+function categorizeFromTags(tags: string[], content: string): string {
+  const contentLower = (tags.join(' ') + ' ' + content).toLowerCase();
   
-  const ingredients: string[] = [];
-  const instructions: string[] = [];
-  
-  // Enhanced patterns for ingredients
-  const ingredientPatterns = [
-    /(\d+(?:\.\d+)?\s*(?:cups?|tbsp|tsp|oz|ml|grams?|lbs?|pumps?|shots?|scoops?)[\s\w]+)/gi,
-    /^[-•*]\s*(.+(?:syrup|milk|cream|base|powder|sauce|extract|vanilla|caramel|strawberry|chocolate).*)/gim,
-    /(?:add|use|get|take|grab)\s+(.+(?:syrup|milk|cream|ice|base|powder|sauce))/gi
-  ];
-  
-  // Enhanced patterns for instructions
-  const instructionPatterns = [
-    /^\d+[\.\)]\s*(.+)/gm,
-    /^(?:first|then|next|after|finally|lastly)[,:\s]+(.+)/gim,
-    /(?:add|pour|mix|stir|blend|shake|top|drizzle|combine|whisk|heat|cool|serve)\s+(.+)/gi
-  ];
-  
-  // Extract ingredients
-  for (const pattern of ingredientPatterns) {
-    const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      const ingredient = match[1] || match[0];
-      if (ingredient && ingredient.length > 5 && ingredients.length < 10) {
-        ingredients.push(ingredient.trim());
-      }
-    }
-  }
-  
-  // Extract instructions
-  for (const pattern of instructionPatterns) {
-    const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      const instruction = match[1] || match[0];
-      if (instruction && instruction.length > 10 && instructions.length < 10) {
-        instructions.push(instruction.trim());
-      }
-    }
-  }
-  
-  // Remove duplicates
-  const uniqueIngredients = [...new Set(ingredients)];
-  const uniqueInstructions = [...new Set(instructions)];
-  
-  return {
-    ingredients: uniqueIngredients,
-    instructions: uniqueInstructions
-  };
-}
-
-function cleanRecipeName(name: string): string {
-  return name
-    .replace(/^Lemon8\s*[·•]\s*/, '')
-    .replace(/\s*[·•]\s*@.+$/, '')
-    .replace(/Recipe Below[🍓]*/gi, '')
-    .replace(/[🍫🍓🎀✨💖🌈☕️🥤🧋🍹🍊🍋🥭🫐🥝🍇🍑🍒🌸💕🎉🔥⭐️🌟💫🍪🧁🍰🎂]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || 'Imported Recipe';
-}
-
-function extractHashtags(text: string): string[] {
-  const hashtags: string[] = [];
-  const hashtagMatches = text.matchAll(/#(\w+)/g);
-  
-  for (const match of hashtagMatches) {
-    const tag = match[1];
-    if (tag && tag.length > 2 && !hashtags.includes(tag) && hashtags.length < 5) {
-      hashtags.push(tag);
-    }
-  }
-  
-  return hashtags;
-}
-
-function determineCategory(content: string): string {
-  const contentLower = content.toLowerCase();
-  
-  if (contentLower.includes('pink') || contentLower.includes('strawberry') || contentLower.includes('raspberry')) {
+  if (contentLower.includes('pink') || contentLower.includes('strawberry') || contentLower.includes('berry')) {
     return 'Pink Drinks';
   } else if (contentLower.includes('blue') || contentLower.includes('butterfly')) {
     return 'Blue Drinks';
@@ -388,9 +403,28 @@ function determineCategory(content: string): string {
   return 'Pink Drinks'; // default
 }
 
-function determineSource(url: string): string {
-  if (url.includes('tiktok.com')) return 'TikTok';
-  if (url.includes('instagram.com')) return 'Instagram';
-  if (url.includes('lemon8')) return 'Lemon8';
-  return 'Social Media';
+function isValidRecipeData(data: ExtractedRecipe): boolean {
+  // Validate that we have meaningful data, not generic fallbacks
+  if (!data.name || data.name.length < 3) return false;
+  if (!data.description || data.description.length < 10) return false;
+  
+  // Check for generic/fake content patterns
+  const genericPatterns = [
+    /your favorite/i,
+    /to taste/i,
+    /according to taste/i,
+    /enjoy your creation/i,
+    /add.*base.*cup/i
+  ];
+  
+  const fullContent = data.name + ' ' + data.description + ' ' + (data.instructions?.join(' ') || '');
+  
+  for (const pattern of genericPatterns) {
+    if (pattern.test(fullContent)) {
+      console.log('Detected generic content pattern:', pattern);
+      return false;
+    }
+  }
+  
+  return true;
 }
