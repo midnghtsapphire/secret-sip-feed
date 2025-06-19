@@ -26,14 +26,32 @@ Deno.serve(async (req) => {
     const { url } = await req.json();
     
     if (!url) {
-      throw new Error('URL is required');
+      return new Response(
+        JSON.stringify({ 
+          error: 'URL is required',
+          details: 'Please provide a valid social media URL'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log('Extracting recipe from:', url);
 
     // Check for problematic Lemon8 URLs
     if (url.includes('v.lemon8-app.com') || url.includes('/al/') || url.startsWith('https://v.lemon8-ap')) {
-      throw new Error('This appears to be a Lemon8 redirect or short URL. Please use the full Lemon8 post URL instead. To get the full URL: 1) Open the post in the Lemon8 app or website, 2) Look for a share button or copy link option, 3) Make sure the URL starts with "https://www.lemon8-app.com/" and includes the full post path.');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid Lemon8 URL Format',
+          details: 'This appears to be a Lemon8 redirect or short URL. Please use the full Lemon8 post URL instead.\n\nTo get the full URL:\n1) Open the post in the Lemon8 app or website\n2) Look for a share button or copy link option\n3) Make sure the URL starts with "https://www.lemon8-app.com/" and includes the full post path\n\nExample: https://www.lemon8-app.com/post/123456789'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Validate URL is from supported platforms
@@ -41,7 +59,16 @@ Deno.serve(async (req) => {
     const isSupported = supportedPlatforms.some(platform => url.includes(platform));
     
     if (!isSupported) {
-      throw new Error('Please use a TikTok, Instagram, or Lemon8 URL. Make sure to use the full URL from the platform, not a shortened or redirect link.');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Unsupported Platform',
+          details: 'Please use a TikTok, Instagram, or Lemon8 URL. Make sure to use the full URL from the platform, not a shortened or redirect link.'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const response = await fetch(`https://api.firecrawl.dev/v0/scrape`, {
@@ -60,13 +87,31 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       console.error('Firecrawl API error:', response.status, response.statusText);
-      throw new Error(`Failed to fetch content from the URL. This might be due to the page being protected, requiring login, or being a redirect page. Please try a different URL or make sure you're using the direct post URL.`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to fetch content',
+          details: `Failed to fetch content from the URL. This might be due to the page being protected, requiring login, or being a redirect page. Please try a different URL or make sure you're using the direct post URL.`
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error('Failed to extract content from the page. The page might be protected or require special access.');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Content extraction failed',
+          details: 'Failed to extract content from the page. The page might be protected or require special access.'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const { markdown, html, metadata } = data.data;
@@ -75,7 +120,16 @@ Deno.serve(async (req) => {
     const contentText = [markdown, metadata?.title, metadata?.description].filter(Boolean).join(' ').toLowerCase();
     
     if (contentText.length < 50 || contentText.includes('open app') || contentText.includes('better on the app')) {
-      throw new Error('This URL appears to redirect to an app download page. Please use the direct post URL instead. For Lemon8, make sure the URL starts with "https://www.lemon8-app.com/" and goes directly to the post.');
+      return new Response(
+        JSON.stringify({ 
+          error: 'App redirect detected',
+          details: 'This URL appears to redirect to an app download page. Please use the direct post URL instead. For Lemon8, make sure the URL starts with "https://www.lemon8-app.com/" and goes directly to the post.'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Extract images
@@ -201,7 +255,16 @@ Deno.serve(async (req) => {
 
     // Validate that we found meaningful content
     if (!recipeName && ingredients.length === 0 && instructionSteps.length === 0) {
-      throw new Error('No recipe content could be extracted from this URL. The page may be a redirect, app download prompt, or may not contain a recipe. Please make sure you\'re using the direct post URL and that the post contains recipe information.');
+      return new Response(
+        JSON.stringify({ 
+          error: 'No recipe content found',
+          details: 'No recipe content could be extracted from this URL. The page may be a redirect, app download prompt, or may not contain a recipe. Please make sure you\'re using the direct post URL and that the post contains recipe information.'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const extractedRecipe: ExtractedRecipe = {
@@ -227,8 +290,8 @@ Deno.serve(async (req) => {
     console.error('Error extracting recipe:', error);
     return new Response(
       JSON.stringify({ 
-        error: 'Failed to extract recipe', 
-        details: error.message 
+        error: 'Unexpected error', 
+        details: error.message || 'An unexpected error occurred while processing the URL'
       }),
       {
         status: 500,
