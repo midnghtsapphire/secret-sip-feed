@@ -2,13 +2,11 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAdmin } from '@/hooks/useAdmin';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 
 const FloatingAddButton: React.FC = () => {
   const { user } = useAuth();
-  const { isAdmin, loading } = useAdmin();
   const { toast } = useToast();
 
   const handleClick = () => {
@@ -22,11 +20,7 @@ const FloatingAddButton: React.FC = () => {
     }
   };
 
-  // Show button for all authenticated users, not just admins
-  if (loading || !user) {
-    return null;
-  }
-
+  // Show button for all users, but require auth to proceed
   return (
     <Link 
       to="/recipes"

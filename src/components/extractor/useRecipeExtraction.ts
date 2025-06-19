@@ -40,9 +40,21 @@ export const useRecipeExtraction = () => {
     // Clear previous error
     setLastError(null);
 
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate URL is from supported platforms
     const supportedPlatforms = ['tiktok.com', 'instagram.com', 'lemon8'];
-    const isSupported = supportedPlatforms.some(platform => url.includes(platform));
+    const isSupported = supportedPlatforms.some(platform => url.toLowerCase().includes(platform));
     
     if (!isSupported) {
       toast({
@@ -62,43 +74,13 @@ export const useRecipeExtraction = () => {
         body: { url }
       });
 
-      // Handle Supabase function invocation errors
       if (error) {
         console.error('Supabase function error:', error);
-        
-        // Check if it's a FunctionsHttpError with response data
-        if (error.message && error.message.includes('Edge Function returned a non-2xx status code')) {
-          // Try to parse the actual error from the function
-          let errorMessage = 'Failed to extract recipe from the URL';
-          let errorDetails = '';
-          
-          // If we have context or additional error info, use it
-          if (data && typeof data === 'object') {
-            if (data.error) {
-              errorMessage = data.error;
-            }
-            if (data.details) {
-              errorDetails = data.details;
-            }
-          }
-          
-          const fullError = errorDetails ? `${errorMessage}\n\n${errorDetails}` : errorMessage;
-          setLastError(fullError);
-          
-          toast({
-            title: "Extraction Failed",
-            description: fullError.length > 100 ? "See details below" : fullError,
-            variant: "destructive",
-          });
-        } else {
-          throw error;
-        }
-        return;
+        throw new Error(error.message || 'Failed to extract recipe');
       }
 
       console.log('Raw extraction response:', data);
 
-      // Check if the response contains an error (this shouldn't happen now, but kept for safety)
       if (data && data.error) {
         const fullError = data.details ? `${data.error}\n\n${data.details}` : data.error;
         setLastError(fullError);
@@ -111,7 +93,6 @@ export const useRecipeExtraction = () => {
         return;
       }
 
-      // The edge function returns the recipe data directly
       if (data && data.name) {
         console.log('Menu items found:', data.menuItems?.length || 0);
         if (data.menuItems && data.menuItems.length > 0) {
@@ -124,7 +105,7 @@ export const useRecipeExtraction = () => {
           description: `Successfully extracted "${data.name}" from ${data.source}${data.menuItems?.length ? ` with ${data.menuItems.length} menu items` : ''}`,
         });
       } else {
-        throw new Error('No recipe data received');
+        throw new Error('No recipe data received from the extraction service');
       }
     } catch (error: any) {
       console.error('Error extracting recipe:', error);
