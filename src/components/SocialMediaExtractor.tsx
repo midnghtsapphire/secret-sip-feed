@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Loader2, ExternalLink, Download } from 'lucide-react';
+import { Loader2, ExternalLink, Download, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -32,6 +32,7 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
   const [url, setUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedRecipe, setExtractedRecipe] = useState<ExtractedRecipe | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleExtract = async () => {
@@ -43,6 +44,9 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
       });
       return;
     }
+
+    // Clear previous error
+    setLastError(null);
 
     // Validate URL is from supported platforms
     const supportedPlatforms = ['tiktok.com', 'instagram.com', 'lemon8'];
@@ -73,6 +77,11 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
 
       console.log('Raw extraction response:', data);
 
+      // Check if the response contains an error
+      if (data && data.error) {
+        throw new Error(data.details || data.error);
+      }
+
       // The edge function returns the recipe data directly
       if (data && data.name) {
         console.log('Menu items found:', data.menuItems?.length || 0);
@@ -90,9 +99,12 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
       }
     } catch (error: any) {
       console.error('Error extracting recipe:', error);
+      const errorMessage = error.message || "Failed to extract recipe from the URL";
+      setLastError(errorMessage);
+      
       toast({
         title: "Extraction Failed",
-        description: error.message || "Failed to extract recipe from the URL",
+        description: errorMessage.length > 100 ? "See details below" : errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -105,12 +117,14 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
       onRecipeExtracted(extractedRecipe);
       setExtractedRecipe(null);
       setUrl('');
+      setLastError(null);
     }
   };
 
   const handleReset = () => {
     setExtractedRecipe(null);
     setUrl('');
+    setLastError(null);
   };
 
   return (
@@ -150,6 +164,27 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
           </p>
         </div>
       </div>
+
+      {/* Display detailed error message */}
+      {lastError && (
+        <Card className="p-4 border-2 border-red-200 bg-red-50">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="space-y-2">
+              <h3 className="font-semibold text-red-800">Extraction Failed</h3>
+              <p className="text-sm text-red-700 whitespace-pre-wrap">{lastError}</p>
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                size="sm"
+                className="border-red-300 text-red-700 hover:bg-red-100"
+              >
+                Try Another URL
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {extractedRecipe && (
         <Card className="p-6 border-2 border-pink-200 bg-gradient-to-br from-pink-50 to-purple-50">
