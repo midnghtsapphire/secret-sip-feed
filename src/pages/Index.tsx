@@ -25,13 +25,18 @@ const Index = () => {
 
   const menuChoices = [
     'Frappuccinos',
-    'Lattes',
+    'Lattes', 
     'Macchiatos',
     'Cold Brew',
     'Refreshers',
     'Tea Lattes',
     'Hot Coffees',
-    'Iced Coffees'
+    'Iced Coffees',
+    'Chocolate Dreams',
+    'Mocha Madness',
+    'Syrup Series - Multi Syrup',
+    'Copycat Classics',
+    'Make Your Own Creations'
   ];
 
   // Filter recipes based on active category and only show public recipes
