@@ -62,16 +62,53 @@ export const useRecipeExtraction = () => {
         body: { url }
       });
 
+      // Handle Supabase function invocation errors
       if (error) {
-        console.error('Extraction error:', error);
-        throw error;
+        console.error('Supabase function error:', error);
+        
+        // Check if it's a FunctionsHttpError with response data
+        if (error.message && error.message.includes('Edge Function returned a non-2xx status code')) {
+          // Try to parse the actual error from the function
+          let errorMessage = 'Failed to extract recipe from the URL';
+          let errorDetails = '';
+          
+          // If we have context or additional error info, use it
+          if (data && typeof data === 'object') {
+            if (data.error) {
+              errorMessage = data.error;
+            }
+            if (data.details) {
+              errorDetails = data.details;
+            }
+          }
+          
+          const fullError = errorDetails ? `${errorMessage}\n\n${errorDetails}` : errorMessage;
+          setLastError(fullError);
+          
+          toast({
+            title: "Extraction Failed",
+            description: fullError.length > 100 ? "See details below" : fullError,
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
       }
 
       console.log('Raw extraction response:', data);
 
-      // Check if the response contains an error
+      // Check if the response contains an error (this shouldn't happen now, but kept for safety)
       if (data && data.error) {
-        throw new Error(data.details || data.error);
+        const fullError = data.details ? `${data.error}\n\n${data.details}` : data.error;
+        setLastError(fullError);
+        
+        toast({
+          title: "Extraction Failed",
+          description: fullError.length > 100 ? "See details below" : fullError,
+          variant: "destructive",
+        });
+        return;
       }
 
       // The edge function returns the recipe data directly
