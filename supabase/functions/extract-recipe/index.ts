@@ -35,7 +35,6 @@ serve(async (req) => {
 
     console.log('Extracting recipe from URL:', url);
 
-    // Extract recipe information from social media post
     const extractedRecipe = await extractRecipeFromSocialMedia(url);
 
     if (!extractedRecipe) {
@@ -65,7 +64,6 @@ serve(async (req) => {
 async function extractRecipeFromSocialMedia(originalUrl: string): Promise<ExtractedRecipe | null> {
   console.log('Fetching content from:', originalUrl);
   
-  // Set up headers to mimic a real browser
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -78,7 +76,6 @@ async function extractRecipeFromSocialMedia(originalUrl: string): Promise<Extrac
     'Upgrade-Insecure-Requests': '1',
   };
 
-  // Fetch the page content
   const response = await fetch(originalUrl, { headers });
   
   if (!response.ok) {
@@ -88,10 +85,8 @@ async function extractRecipeFromSocialMedia(originalUrl: string): Promise<Extrac
   const html = await response.text();
   console.log('HTML content length:', html.length);
 
-  // Extract structured data and meta information
   const extractedData = extractRealContent(html, originalUrl);
   
-  // Only return if we found meaningful content
   if (!extractedData || !isValidRecipeData(extractedData)) {
     console.log('No valid recipe data found');
     return null;
@@ -103,29 +98,23 @@ async function extractRecipeFromSocialMedia(originalUrl: string): Promise<Extrac
 function extractRealContent(html: string, originalUrl: string): ExtractedRecipe | null {
   console.log('Extracting real content from HTML...');
   
-  // Extract platform-specific data
   const platform = getPlatform(originalUrl);
   console.log('Detected platform:', platform);
   
-  // Extract meta data (title, description, image)
   const metaData = extractMetaTags(html);
   console.log('Meta data extracted:', Object.keys(metaData));
   
-  // Extract JSON-LD structured data
   const jsonLdData = extractStructuredData(html);
   console.log('Structured data found:', !!jsonLdData);
   
-  // Extract actual recipe content based on platform
   const recipeContent = extractPlatformSpecificContent(html, platform);
   console.log('Platform-specific content extracted:', !!recipeContent);
   
-  // Build recipe object from REAL extracted data only
   const name = extractRecipeName(metaData, jsonLdData, recipeContent);
   const description = extractDescription(metaData, jsonLdData, recipeContent);
-  const imageUrl = extractImageUrl(metaData, jsonLdData);
+  const imageUrl = extractImageUrl(metaData, jsonLdData, html);
   const tags = extractTags(html, platform);
   
-  // Only proceed if we have meaningful extracted data
   if (!name || name.length < 3) {
     console.log('No valid recipe name found');
     return null;
@@ -135,14 +124,18 @@ function extractRealContent(html: string, originalUrl: string): ExtractedRecipe 
     console.log('No valid description found');
     return null;
   }
+
+  if (!imageUrl) {
+    console.log('No image found');
+    return null;
+  }
   
-  // Extract ingredients and instructions from actual content
   const { ingredients, instructions } = extractRecipeSteps(recipeContent, metaData.description || '');
   
   return {
     name: cleanText(name),
     description: cleanText(description),
-    imageUrl: imageUrl || 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=400&h=300&fit=crop',
+    imageUrl: imageUrl,
     ingredients: ingredients.length > 0 ? ingredients : undefined,
     instructions: instructions.length > 0 ? instructions : undefined,
     tags: tags.length > 0 ? tags : undefined,
@@ -162,11 +155,9 @@ function getPlatform(url: string): string {
 function extractMetaTags(html: string): Record<string, string> {
   const meta: Record<string, string> = {};
   
-  // Extract title
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   if (titleMatch) meta.title = titleMatch[1].trim();
   
-  // Extract Open Graph and Twitter meta tags
   const metaRegex = /<meta[^>]*(?:property|name)=["']([^"']+)["'][^>]*content=["']([^"']+)["'][^>]*\/?>/gi;
   let match;
   
@@ -207,33 +198,27 @@ function extractStructuredData(html: string): any {
 }
 
 function extractPlatformSpecificContent(html: string, platform: string): string {
-  // Remove script tags and other noise
   let cleanHtml = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
   
-  // Platform-specific content extraction
   switch (platform) {
     case 'TikTok':
-      // Extract from TikTok's specific content areas
       const tiktokContent = cleanHtml.match(/<div[^>]*class="[^"]*video-meta[^"]*"[^>]*>[\s\S]*?<\/div>/i);
       if (tiktokContent) return tiktokContent[0];
       break;
       
     case 'Instagram':
-      // Extract from Instagram post content
       const igContent = cleanHtml.match(/<meta property="og:description" content="([^"]+)"/i);
       if (igContent) return igContent[1];
       break;
       
     case 'Lemon8':
-      // Extract from Lemon8 specific areas
       const lemon8Content = cleanHtml.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>[\s\S]*?<\/div>/i);
       if (lemon8Content) return lemon8Content[0];
       break;
   }
   
-  // Fallback to extracting from common content areas
   const contentAreas = [
     /<article[^>]*>[\s\S]*?<\/article>/i,
     /<main[^>]*>[\s\S]*?<\/main>/i,
@@ -249,24 +234,19 @@ function extractPlatformSpecificContent(html: string, platform: string): string 
 }
 
 function extractRecipeName(metaData: Record<string, string>, jsonLd: any, content: string): string {
-  // Try JSON-LD first
   if (jsonLd?.name) return jsonLd.name;
   
-  // Try meta tags
   if (metaData.ogtitle) return metaData.ogtitle;
   if (metaData.twittertitle) return metaData.twittertitle;
   if (metaData.title) return metaData.title;
   
-  // Extract from content
   const contentText = content.replace(/<[^>]+>/g, ' ').trim();
   const lines = contentText.split('\n').filter(line => line.trim().length > 5);
   
-  // Look for recipe-like titles
   for (const line of lines.slice(0, 3)) {
     const cleanLine = line.trim();
     if (cleanLine.length > 5 && cleanLine.length < 100) {
-      // Check if it looks like a recipe title
-      if (/recipe|drink|latte|coffee|tea|smoothie|beverage/i.test(cleanLine)) {
+      if (/recipe|drink|latte|coffee|tea|smoothie|beverage|starbucks/i.test(cleanLine)) {
         return cleanLine;
       }
     }
@@ -276,18 +256,14 @@ function extractRecipeName(metaData: Record<string, string>, jsonLd: any, conten
 }
 
 function extractDescription(metaData: Record<string, string>, jsonLd: any, content: string): string {
-  // Try JSON-LD first
   if (jsonLd?.description) return jsonLd.description;
   
-  // Try meta tags
   if (metaData.ogdescription && metaData.ogdescription.length > 20) return metaData.ogdescription;
   if (metaData.twitterdescription && metaData.twitterdescription.length > 20) return metaData.twitterdescription;
   if (metaData.description && metaData.description.length > 20) return metaData.description;
   
-  // Extract meaningful content from text
   const contentText = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   
-  // Look for substantial paragraphs
   const sentences = contentText.split(/[.!?]+/).filter(s => s.trim().length > 20);
   
   for (const sentence of sentences.slice(0, 3)) {
@@ -300,25 +276,78 @@ function extractDescription(metaData: Record<string, string>, jsonLd: any, conte
   return '';
 }
 
-function extractImageUrl(metaData: Record<string, string>, jsonLd: any): string | null {
+function extractImageUrl(metaData: Record<string, string>, jsonLd: any, html: string): string | null {
+  console.log('Extracting image URL...');
+  
   // Try JSON-LD first
   if (jsonLd?.image) {
     const image = Array.isArray(jsonLd.image) ? jsonLd.image[0] : jsonLd.image;
-    if (typeof image === 'string') return image;
-    if (image?.url) return image.url;
+    if (typeof image === 'string' && image.startsWith('http')) {
+      console.log('Found image in JSON-LD:', image);
+      return image;
+    }
+    if (image?.url && image.url.startsWith('http')) {
+      console.log('Found image URL in JSON-LD:', image.url);
+      return image.url;
+    }
   }
   
-  // Try meta tags
-  if (metaData.ogimage && metaData.ogimage.startsWith('http')) return metaData.ogimage;
-  if (metaData.twitterimage && metaData.twitterimage.startsWith('http')) return metaData.twitterimage;
+  // Try Open Graph image
+  if (metaData.ogimage && metaData.ogimage.startsWith('http')) {
+    console.log('Found Open Graph image:', metaData.ogimage);
+    return metaData.ogimage;
+  }
   
+  // Try Twitter image
+  if (metaData.twitterimage && metaData.twitterimage.startsWith('http')) {
+    console.log('Found Twitter image:', metaData.twitterimage);
+    return metaData.twitterimage;
+  }
+  
+  // Try to find images in the HTML content
+  const imageRegexes = [
+    // Standard img tags with src
+    /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
+    // CSS background images
+    /background-image:\s*url\(["']?([^"')]+)["']?\)/gi,
+    // Data attributes that might contain images
+    /data-[^=]*image[^=]*=["']([^"']+)["']/gi,
+    // Content attributes that might contain images
+    /content=["']([^"']*\.(jpg|jpeg|png|gif|webp)[^"']*)["']/gi
+  ];
+  
+  for (const regex of imageRegexes) {
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      let imageUrl = match[1];
+      
+      // Skip very small images, icons, or tracking pixels
+      if (imageUrl.includes('1x1') || imageUrl.includes('icon') || imageUrl.includes('logo')) {
+        continue;
+      }
+      
+      // Make sure it's a full URL
+      if (imageUrl.startsWith('//')) {
+        imageUrl = 'https:' + imageUrl;
+      } else if (imageUrl.startsWith('/')) {
+        const urlObj = new URL(html);
+        imageUrl = urlObj.origin + imageUrl;
+      }
+      
+      if (imageUrl.startsWith('http') && /\.(jpg|jpeg|png|gif|webp)/i.test(imageUrl)) {
+        console.log('Found image in HTML:', imageUrl);
+        return imageUrl;
+      }
+    }
+  }
+  
+  console.log('No valid image found');
   return null;
 }
 
 function extractTags(html: string, platform: string): string[] {
   const tags: string[] = [];
   
-  // Extract hashtags from content
   const hashtagRegex = /#(\w+)/g;
   let match;
   
@@ -329,7 +358,6 @@ function extractTags(html: string, platform: string): string[] {
     }
   }
   
-  // Add platform as tag
   tags.push(platform);
   
   return tags;
@@ -341,7 +369,6 @@ function extractRecipeSteps(content: string, description: string): { ingredients
   
   const fullText = (content + ' ' + description).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   
-  // Look for ingredient patterns
   const ingredientPatterns = [
     /(\d+(?:\.\d+)?\s*(?:cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ml|grams?|pumps?|shots?|scoops?)\s+[^.!?]+)/gi,
     /(?:add|use|get|mix|pour)\s+([^.!?]{10,80}(?:syrup|milk|cream|ice|powder|extract|vanilla|caramel|coffee))/gi
@@ -357,7 +384,6 @@ function extractRecipeSteps(content: string, description: string): { ingredients
     }
   }
   
-  // Look for instruction patterns
   const instructionPatterns = [
     /(?:^|\n)\s*\d+[\.\)]\s*([^.!?\n]{15,150})/g,
     /(?:first|then|next|after|finally)\s*[,:]?\s*([^.!?\n]{15,150})/gi
@@ -400,15 +426,14 @@ function categorizeFromTags(tags: string[], content: string): string {
     return 'Viral Today';
   }
   
-  return 'Pink Drinks'; // default
+  return 'Pink Drinks';
 }
 
 function isValidRecipeData(data: ExtractedRecipe): boolean {
-  // Validate that we have meaningful data, not generic fallbacks
   if (!data.name || data.name.length < 3) return false;
   if (!data.description || data.description.length < 10) return false;
+  if (!data.imageUrl) return false;
   
-  // Check for generic/fake content patterns
   const genericPatterns = [
     /your favorite/i,
     /to taste/i,
