@@ -29,9 +29,10 @@ export const useRecipeExtraction = () => {
   const { toast } = useToast();
 
   const handleExtract = async () => {
-    console.log('Starting recipe extraction for URL:', url);
+    console.log('🔍 DEBUG: Starting recipe extraction for URL:', url);
     
     if (!url.trim()) {
+      console.log('❌ DEBUG: No URL provided');
       toast({
         title: "URL Required",
         description: "Please enter a valid social media URL",
@@ -46,7 +47,9 @@ export const useRecipeExtraction = () => {
     // Validate URL format
     try {
       new URL(url);
+      console.log('✅ DEBUG: URL format is valid');
     } catch {
+      console.log('❌ DEBUG: Invalid URL format');
       toast({
         title: "Invalid URL",
         description: "Please enter a valid URL",
@@ -60,6 +63,7 @@ export const useRecipeExtraction = () => {
     const isSupported = supportedPlatforms.some(platform => url.toLowerCase().includes(platform));
     
     if (!isSupported) {
+      console.log('❌ DEBUG: Unsupported platform detected');
       toast({
         title: "Unsupported Platform",
         description: "Please use a TikTok, Instagram, Lemon8, YouTube, or Twitter/X URL",
@@ -68,25 +72,29 @@ export const useRecipeExtraction = () => {
       return;
     }
 
+    console.log('✅ DEBUG: Platform is supported');
     setIsExtracting(true);
     
     try {
-      console.log('Calling Supabase function with URL:', url);
+      console.log('🚀 DEBUG: About to call Supabase function extract-recipe');
+      console.log('🚀 DEBUG: Supabase client available:', !!supabase);
       
       const { data, error } = await supabase.functions.invoke('extract-recipe', {
         body: { url: url.trim() }
       });
 
-      console.log('Supabase function response:', { data, error });
+      console.log('📡 DEBUG: Supabase function response received');
+      console.log('📡 DEBUG: Response data:', data);
+      console.log('📡 DEBUG: Response error:', error);
 
       if (error) {
-        console.error('Supabase function error:', error);
+        console.error('❌ DEBUG: Supabase function error:', error);
         throw new Error(error.message || 'Failed to extract recipe');
       }
 
       if (data && data.error) {
         const fullError = data.details ? `${data.error}\n\n${data.details}` : data.error;
-        console.error('Function returned error:', fullError);
+        console.error('❌ DEBUG: Function returned error:', fullError);
         setLastError(fullError);
         
         toast({
@@ -98,23 +106,26 @@ export const useRecipeExtraction = () => {
       }
 
       if (data && data.name) {
-        console.log('Recipe extracted successfully:', data.name);
-        console.log('Menu items found:', data.menuItems?.length || 0);
-        if (data.menuItems && data.menuItems.length > 0) {
-          console.log('Menu items:', data.menuItems);
-        }
+        console.log('✅ DEBUG: Recipe extracted successfully:', data.name);
+        console.log('✅ DEBUG: Full extracted data:', JSON.stringify(data, null, 2));
         
         setExtractedRecipe(data);
         toast({
           title: "Recipe Extracted! 🎉",
-          description: `Successfully extracted "${data.name}" from ${data.source}${data.menuItems?.length ? ` with ${data.menuItems.length} menu items` : ''}`,
+          description: `Successfully extracted "${data.name}" from ${data.source}`,
         });
       } else {
-        console.error('No recipe data received:', data);
+        console.error('❌ DEBUG: No recipe data received:', data);
         throw new Error('No recipe data received from the extraction service');
       }
     } catch (error: any) {
-      console.error('Error extracting recipe:', error);
+      console.error('💥 DEBUG: Error extracting recipe:', error);
+      console.error('💥 DEBUG: Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
       const errorMessage = error.message || "Failed to extract recipe from the URL";
       setLastError(errorMessage);
       
@@ -124,12 +135,13 @@ export const useRecipeExtraction = () => {
         variant: "destructive",
       });
     } finally {
+      console.log('🏁 DEBUG: Extraction process finished');
       setIsExtracting(false);
     }
   };
 
   const handleReset = () => {
-    console.log('Resetting extraction state');
+    console.log('🔄 DEBUG: Resetting extraction state');
     setExtractedRecipe(null);
     setUrl('');
     setLastError(null);

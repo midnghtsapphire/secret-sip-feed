@@ -17,24 +17,36 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({
   onUrlChange,
   onExtract
 }) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('🎯 DEBUG: Form submitted with URL:', url);
+    onExtract();
+  };
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value;
+    console.log('📝 DEBUG: URL input changed to:', newUrl);
+    onUrlChange(newUrl);
+  };
+
   return (
     <div className="space-y-4">
       <div>
         <label htmlFor="social-url" className="block text-sm font-medium text-gray-700 mb-2">
           Social Media URL
         </label>
-        <div className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             id="social-url"
             type="url"
             value={url}
-            onChange={(e) => onUrlChange(e.target.value)}
+            onChange={handleUrlChange}
             placeholder="Paste TikTok, Instagram, or Lemon8 link here..."
             className="flex-1"
             disabled={isExtracting}
           />
           <Button 
-            onClick={onExtract}
+            type="submit"
             disabled={isExtracting || !url.trim()}
             className="bg-gradient-to-r from-pink-500 to-purple-600"
           >
@@ -47,9 +59,9 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({
               'Extract Recipe'
             )}
           </Button>
-        </div>
+        </form>
         <p className="text-xs text-gray-500 mt-1">
-          Supports TikTok, Instagram, and Lemon8 recipe posts
+          Supports TikTok, Instagram, Lemon8, YouTube, and Twitter/X recipe posts
         </p>
       </div>
     </div>
