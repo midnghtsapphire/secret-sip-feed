@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { convertMobileToDesktopUrl } from '@/utils/urlConverter';
 
 interface ExtractedRecipe {
   name: string;
@@ -60,9 +61,24 @@ export const useRecipeExtraction = () => {
       return;
     }
 
+    // Convert mobile URL to desktop URL
+    const conversionResult = convertMobileToDesktopUrl(url);
+    console.log('🔄 DEBUG: URL conversion result:', conversionResult);
+    
+    if (conversionResult.wasConverted) {
+      console.log('✅ DEBUG: URL converted from mobile to desktop version');
+      toast({
+        title: "Mobile Link Detected",
+        description: `Converting ${conversionResult.platform} mobile link to desktop version for better extraction`,
+        duration: 3000,
+      });
+    }
+
+    const urlToUse = conversionResult.convertedUrl;
+
     // Validate URL is from supported platforms
     const supportedPlatforms = ['tiktok.com', 'instagram.com', 'lemon8', 'youtube.com', 'twitter.com', 'x.com'];
-    const isSupported = supportedPlatforms.some(platform => url.toLowerCase().includes(platform));
+    const isSupported = supportedPlatforms.some(platform => urlToUse.toLowerCase().includes(platform));
     
     if (!isSupported) {
       console.log('❌ DEBUG: Unsupported platform detected');
@@ -81,10 +97,10 @@ export const useRecipeExtraction = () => {
     try {
       console.log('🚀 DEBUG: About to call Supabase function extract-recipe');
       console.log('🚀 DEBUG: Supabase client available:', !!supabase);
-      console.log('🚀 DEBUG: Function payload:', { url: url.trim() });
+      console.log('🚀 DEBUG: Function payload:', { url: urlToUse });
       
       const { data, error } = await supabase.functions.invoke('extract-recipe', {
-        body: { url: url.trim() }
+        body: { url: urlToUse }
       });
 
       console.log('📡 DEBUG: Supabase function response received');
