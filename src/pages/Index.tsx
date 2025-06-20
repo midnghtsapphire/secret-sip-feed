@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
@@ -9,20 +8,18 @@ import QuickImportButton from '../components/QuickImportButton';
 import ConfettiRain from '../components/ConfettiRain';
 import SEOHead from '../components/SEOHead';
 import { useRecipes } from '../hooks/useRecipes';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 
 const Index = () => {
   const [activeCategory, setActiveCategory] = useState('All');
-  const [selectedMenuItem, setSelectedMenuItem] = useState('Pretty n Pink');
   const { recipes, isLoading } = useRecipes();
 
   const categories = [
     'All',
-    'Budget Babe Brews',
-    'Pink Drinks',
-    'Blue Drinks', 
-    'Green Teas',
-    'Foam Mixologists'
+    'Pretty n Pink',
+    'Mad Matchas', 
+    'Blues Clues',
+    'Foam Frenzy',
+    'MochaMagic'
   ];
 
   const menuChoices = [
@@ -118,23 +115,6 @@ const Index = () => {
           />
         </div>
 
-        {/* Menu Tabs */}
-        <div className="mb-6">
-          <Tabs value={selectedMenuItem} onValueChange={setSelectedMenuItem} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 lg:grid-cols-8 xl:grid-cols-10 gap-1 h-auto p-1 bg-white/80 backdrop-blur-sm rounded-xl shadow-lg">
-              {menuChoices.slice(0, 10).map((choice) => (
-                <TabsTrigger 
-                  key={choice} 
-                  value={choice}
-                  className="text-xs px-2 py-2 rounded-lg font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-500 data-[state=active]:text-white transition-all duration-200"
-                >
-                  {choice}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-        
         {/* Header with SEO-friendly content */}
         <div className="mb-6">
           <h1 className="text-xl font-bold text-gray-800 mb-2">
