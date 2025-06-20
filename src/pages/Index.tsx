@@ -9,11 +9,11 @@ import QuickImportButton from '../components/QuickImportButton';
 import ConfettiRain from '../components/ConfettiRain';
 import SEOHead from '../components/SEOHead';
 import { useRecipes } from '../hooks/useRecipes';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 
 const Index = () => {
   const [activeCategory, setActiveCategory] = useState('All');
-  const [selectedMenuItem, setSelectedMenuItem] = useState('');
+  const [selectedMenuItem, setSelectedMenuItem] = useState('Pretty n Pink');
   const { recipes, isLoading } = useRecipes();
 
   const categories = [
@@ -30,6 +30,7 @@ const Index = () => {
     'Mad Matchas', 
     'Blues Clues',
     'Foam Frenzy',
+    'MochaMagic',
     'Frappuccinos',
     'Lattes',
     'Cold Brew',
@@ -117,25 +118,21 @@ const Index = () => {
           />
         </div>
 
-        {/* Menu Dropdown */}
+        {/* Menu Tabs */}
         <div className="mb-6">
-          <div className="max-w-xs">
-            <label htmlFor="menu-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Choose Menu Category
-            </label>
-            <Select value={selectedMenuItem} onValueChange={setSelectedMenuItem}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a menu category" />
-              </SelectTrigger>
-              <SelectContent>
-                {menuChoices.map((choice) => (
-                  <SelectItem key={choice} value={choice}>
-                    {choice}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <Tabs value={selectedMenuItem} onValueChange={setSelectedMenuItem} className="w-full">
+            <TabsList className="grid w-full grid-cols-5 lg:grid-cols-8 xl:grid-cols-10 gap-1 h-auto p-1 bg-white/80 backdrop-blur-sm rounded-xl shadow-lg">
+              {menuChoices.slice(0, 10).map((choice) => (
+                <TabsTrigger 
+                  key={choice} 
+                  value={choice}
+                  className="text-xs px-2 py-2 rounded-lg font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-500 data-[state=active]:text-white transition-all duration-200"
+                >
+                  {choice}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
         
         {/* Header with SEO-friendly content */}
