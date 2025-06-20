@@ -77,14 +77,15 @@ export async function runApifyActor(actorId: string, runInput: ApifyRunInput, ap
     throw new Error(`Apify run failed with status: ${runStatus}`);
   }
 
-  // Get results from the default dataset
-  const resultsResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}/dataset/items`, {
+  // Get results from the correct dataset URL - this was the bug!
+  const resultsResponse = await fetch(`https://api.apify.com/v2/datasets/${runData.data.defaultDatasetId}/items`, {
     headers: {
       'Authorization': `Bearer ${apiToken}`,
     }
   });
 
   console.log('Results response status:', resultsResponse.status);
+  console.log('Results URL used:', `https://api.apify.com/v2/datasets/${runData.data.defaultDatasetId}/items`);
 
   if (!resultsResponse.ok) {
     const errorText = await resultsResponse.text();
