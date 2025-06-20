@@ -80,12 +80,18 @@ serve(async (req) => {
 
       const results = await runApifyActor(actorId, runInput, apifyApiToken, defaultApifyOptions);
       console.log('Apify results received, count:', results.length);
+      
+      // Log the actual results structure to help debug
+      if (results && results.length > 0) {
+        console.log('First result keys:', Object.keys(results[0]));
+        console.log('First result sample:', JSON.stringify(results[0], null, 2).slice(0, 500));
+      }
 
       if (!results || results.length === 0) {
-        console.error('No results found');
+        console.error('No results found from Apify actor');
         return createErrorResponse(
-          'No recipe content found at this URL',
-          'The URL may not contain a recipe, or the content is not accessible to our scraper.',
+          'No content found at this URL',
+          'The Apify actor returned no results. The URL may not contain accessible content.',
           404
         );
       }
@@ -120,11 +126,18 @@ serve(async (req) => {
         originalUrl: sanitizedUrl
       };
 
-      console.log('Recipe extracted:', { name: recipe.name, category: recipe.category, hasInstructions: !!recipe.instructions });
+      console.log('Recipe extracted:', { 
+        name: recipe.name, 
+        category: recipe.category, 
+        hasInstructions: !!recipe.instructions,
+        hasImages: recipe.images.length 
+      });
 
       // Validate extracted content
       if (!isValidRecipeName(recipe.name)) {
         console.error('Could not extract valid recipe name from content');
+        console.error('Extracted name was:', recipe.name);
+        console.error('Content that was processed:', content.slice(0, 500));
         return createErrorResponse(
           'No valid recipe found in the content',
           'The URL does not appear to contain a recognizable recipe. Please try a different URL or manually enter the recipe details.',
@@ -136,6 +149,12 @@ serve(async (req) => {
       return createSuccessResponse(recipe);
 
     } catch (error) {
+      console.error('Scraping error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
       if (error.name === 'AbortError') {
         console.error('Request timeout');
         return createErrorResponse(
@@ -145,10 +164,12 @@ serve(async (req) => {
         );
       }
       
-      console.error('Scraping error:', error);
+      // Return the actual error instead of generic messages
+      const errorMessage = error.message || 'Unknown error occurred during scraping';
+      console.error('Returning scraping error:', errorMessage);
       return createErrorResponse(
-        'Failed to extract recipe',
-        'Unable to access the content at this URL. The social media platform may be blocking automated access.',
+        'Scraping failed',
+        `Apify actor error: ${errorMessage}`,
         500
       );
     }

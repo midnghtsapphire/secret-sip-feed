@@ -111,34 +111,28 @@ export const useRecipeExtraction = () => {
         console.error('❌ DEBUG: Supabase function error:', error);
         console.error('❌ DEBUG: Full error object:', JSON.stringify(error, null, 2));
         
-        // Provide more specific error messages based on the platform
-        let userFriendlyMessage = 'Failed to extract recipe from the URL';
-        
-        if (urlToUse.includes('lemon8')) {
-          userFriendlyMessage = 'Lemon8 is blocking access to this recipe. Try copying the recipe details manually or find it on TikTok/Instagram instead.';
-        } else if (urlToUse.includes('instagram')) {
-          userFriendlyMessage = 'Instagram is blocking access to this post. The post might be private or require login to view.';
-        } else if (urlToUse.includes('tiktok')) {
-          userFriendlyMessage = 'TikTok is blocking access to this video. Try a different TikTok URL or copy the recipe manually.';
-        }
-        
-        setLastError(userFriendlyMessage);
+        // Show the actual error from Supabase/Apify instead of generic messages
+        const errorMessage = error.message || 'Failed to extract recipe from the URL';
+        setLastError(errorMessage);
         toast({
           title: "Extraction Failed",
-          description: userFriendlyMessage,
+          description: errorMessage,
           variant: "destructive",
         });
         return;
       }
 
       if (data && data.error) {
+        console.error('❌ DEBUG: Function returned error:', data.error);
+        console.error('❌ DEBUG: Function error details:', data.details);
+        
+        // Show the actual error from the edge function
         const fullError = data.details ? `${data.error}\n\n${data.details}` : data.error;
-        console.error('❌ DEBUG: Function returned error:', fullError);
         setLastError(fullError);
         
         toast({
           title: "Extraction Failed",
-          description: fullError.length > 100 ? "See details below" : fullError,
+          description: fullError.length > 100 ? "See error details below" : fullError,
           variant: "destructive",
         });
         return;
@@ -158,17 +152,12 @@ export const useRecipeExtraction = () => {
         console.error('❌ DEBUG: Data type:', typeof data);
         console.error('❌ DEBUG: Data keys:', data ? Object.keys(data) : 'data is null/undefined');
         
-        // Provide platform-specific guidance
-        let platformMessage = 'No recipe content could be extracted from this URL.';
-        
-        if (urlToUse.includes('lemon8')) {
-          platformMessage = 'Lemon8 posts are often blocked from extraction. Try finding the same recipe on TikTok or Instagram, or enter the recipe details manually.';
-        }
-        
-        setLastError(platformMessage);
+        // Show actual response instead of platform-specific messages
+        const errorMessage = 'No recipe content could be extracted from this URL. The response was empty or invalid.';
+        setLastError(errorMessage);
         toast({
           title: "No Recipe Found",
-          description: platformMessage,
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -180,18 +169,13 @@ export const useRecipeExtraction = () => {
         name: error.name
       });
       
-      let errorMessage = error.message || "Failed to extract recipe from the URL";
-      
-      // Provide platform-specific error messages
-      if (urlToUse.includes('lemon8')) {
-        errorMessage = 'Lemon8 is protecting this content and blocking extraction. Try finding the recipe on TikTok or Instagram instead.';
-      }
-      
+      // Show the actual error instead of platform-specific messages
+      const errorMessage = error.message || "Failed to extract recipe from the URL";
       setLastError(errorMessage);
       
       toast({
         title: "Extraction Failed",
-        description: errorMessage.length > 100 ? "See details below" : errorMessage,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
