@@ -19,7 +19,8 @@ const Index = () => {
     'Mad Matchas', 
     'Blues Clues',
     'Foam Frenzy',
-    'MochaMagic'
+    'Mocha Magic',
+    'Budget Babe Brews'
   ];
 
   const menuChoices = [

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,8 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     'Mad Matchas', 
     'Blues Clues',
     'Foam Frenzy',
-    'MochaMagic'
+    'Mocha Magic',
+    'Budget Babe Brews'
   ];
 
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
