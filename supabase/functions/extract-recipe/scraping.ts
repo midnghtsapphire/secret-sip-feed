@@ -1,71 +1,123 @@
 
-// Web scraping functionality
-export interface ScrapeOptions {
+// Apify integration utilities
+export interface ApifyRunOptions {
   timeout: number;
-  waitFor: number;
+  maxAttempts: number;
 }
 
-export const defaultScrapeOptions: ScrapeOptions = {
+export const defaultApifyOptions: ApifyRunOptions = {
   timeout: 30000,
-  waitFor: 2000
+  maxAttempts: 30
 };
 
-export async function scrapeContent(url: string, apiKey: string, options: ScrapeOptions) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeout);
+export interface ApifyRunInput {
+  directUrls?: string[];
+  postURLs?: string[];
+  startUrls?: Array<{ url: string }>;
+  resultsType?: string;
+  resultsLimit?: number;
+  searchType?: string;
+  searchLimit?: number;
+  maxItems?: number;
+  maxRequestRetries?: number;
+  maxPages?: number;
+}
 
-  try {
-    const response = await fetch('https://api.firecrawl.dev/v0/scrape', {
-      method: 'POST',
+export async function runApifyActor(actorId: string, runInput: ApifyRunInput, apiToken: string, options: ApifyRunOptions) {
+  // Start the Apify actor run
+  const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(runInput)
+  });
+
+  if (!runResponse.ok) {
+    throw new Error(`Failed to start Apify run: ${runResponse.status}`);
+  }
+
+  const runData = await runResponse.json();
+  const runId = runData.data.id;
+
+  // Wait for completion
+  let attempts = 0;
+  let runStatus = 'RUNNING';
+
+  while (runStatus === 'RUNNING' && attempts < options.maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const statusResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}`, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: url,
-        pageOptions: {
-          onlyMainContent: true,
-          includeHtml: false,
-          waitFor: options.waitFor,
-          screenshot: false
-        },
-        extractorOptions: {
-          mode: 'llm-extraction',
-          extractionPrompt: 'Extract recipe name, ingredients, instructions, and drink details from this social media post. Ignore app download prompts and navigation elements.',
-          extractionSchema: {
-            type: "object",
-            properties: {
-              recipeName: {
-                type: "string",
-                description: "The name of the recipe or drink"
-              },
-              ingredients: {
-                type: "array",
-                items: {
-                  type: "string"
-                },
-                description: "List of ingredients mentioned"
-              },
-              instructions: {
-                type: "string",
-                description: "Instructions for making the recipe"
-              },
-              description: {
-                type: "string",
-                description: "Brief description of the recipe"
-              }
-            },
-            required: ["recipeName"]
-          }
-        }
-      }),
-      signal: controller.signal
+        'Authorization': `Bearer ${apiToken}`,
+      }
     });
 
-    clearTimeout(timeoutId);
-    return { response, controller };
-  } catch (error) {
-    clearTimeout(timeoutId);
-    throw error;
+    if (statusResponse.ok) {
+      const statusData = await statusResponse.json();
+      runStatus = statusData.data.status;
+    }
+    
+    attempts++;
+  }
+
+  if (runStatus !== 'SUCCEEDED') {
+    throw new Error(`Apify run failed with status: ${runStatus}`);
+  }
+
+  // Get results
+  const resultsResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}/dataset/items`, {
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+    }
+  });
+
+  if (!resultsResponse.ok) {
+    throw new Error(`Failed to get results: ${resultsResponse.status}`);
+  }
+
+  return await resultsResponse.json();
+}
+
+export function getActorIdForPlatform(url: string): { actorId: string; runInput: ApifyRunInput } {
+  if (url.includes('instagram')) {
+    return {
+      actorId: 'shu8hvrXbJbY3Eb9W', // Instagram Scraper
+      runInput: {
+        directUrls: [url],
+        resultsType: 'posts',
+        resultsLimit: 1,
+        searchType: 'hashtag',
+        searchLimit: 1
+      }
+    };
+  } else if (url.includes('tiktok')) {
+    return {
+      actorId: 'OtzYfK1ndEGdwWFKQ', // TikTok Scraper
+      runInput: {
+        postURLs: [url],
+        maxItems: 1
+      }
+    };
+  } else {
+    return {
+      actorId: 'A3ugHq174iKd7kG4F', // Web Scraper
+      runInput: {
+        startUrls: [{ url }],
+        maxRequestRetries: 3,
+        maxPages: 1
+      }
+    };
+  }
+}
+
+export function extractContentFromApifyResult(result: any, url: string): string {
+  if (url.includes('instagram')) {
+    return result.caption || result.text || '';
+  } else if (url.includes('tiktok')) {
+    return result.text || result.description || '';
+  } else {
+    return result.text || result.content || '';
   }
 }
