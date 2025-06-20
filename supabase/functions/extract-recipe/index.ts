@@ -11,6 +11,8 @@ const MAX_REQUEST_SIZE = 1024 * 1024; // 1MB
 const ALLOWED_DOMAINS = [
   'tiktok.com',
   'instagram.com',
+  'lemon8-app.com',
+  'v.lemon8-app.com',
   'youtube.com',
   'twitter.com',
   'x.com'
@@ -143,7 +145,7 @@ serve(async (req) => {
 
     if (!isDomainAllowed(sanitizedUrl)) {
       return new Response(
-        JSON.stringify({ error: 'Domain not allowed' }),
+        JSON.stringify({ error: 'Domain not allowed. Supported platforms: TikTok, Instagram, Lemon8, YouTube, Twitter/X' }),
         { 
           status: 403, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -219,7 +221,9 @@ serve(async (req) => {
         category: extractCategory(content),
         instructions: extractInstructions(content),
         tags: extractTags(content),
-        imageUrl: scrapeData.data.metadata?.image || null
+        imageUrl: scrapeData.data.metadata?.image || null,
+        source: getDomainFromUrl(sanitizedUrl),
+        originalUrl: sanitizedUrl
       };
 
       // Validate extracted data
@@ -234,7 +238,7 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ recipe }),
+        JSON.stringify(recipe),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
@@ -280,17 +284,25 @@ function extractRecipeName(content: string): string {
   const patterns = [
     /recipe[:\s]*([^.\n]+)/i,
     /drink[:\s]*([^.\n]+)/i,
-    /how to make[:\s]*([^.\n]+)/i
+    /how to make[:\s]*([^.\n]+)/i,
+    /🍫🍓\s*([^🍓\n]+)/i,
+    /([^·\n]+)\s*recipe/i
   ];
   
   for (const pattern of patterns) {
     const match = content.match(pattern);
     if (match && match[1]) {
-      return sanitizeInput(match[1]);
+      return sanitizeInput(match[1].trim());
     }
   }
   
-  return '';
+  // Fallback: look for title-like content
+  const lines = content.split('\n').filter(line => line.trim().length > 0);
+  if (lines.length > 0) {
+    return sanitizeInput(lines[0].substring(0, 100));
+  }
+  
+  return 'Imported Recipe';
 }
 
 function extractDescription(content: string): string {
@@ -308,6 +320,17 @@ function extractCategory(content: string): string {
     }
   }
   
+  // Check for drink type keywords
+  if (lowerContent.includes('pink') || lowerContent.includes('strawberry')) {
+    return 'Pink Drinks';
+  }
+  if (lowerContent.includes('blue') || lowerContent.includes('berry')) {
+    return 'Blue Drinks';
+  }
+  if (lowerContent.includes('matcha') || lowerContent.includes('green tea')) {
+    return 'Green Teas';
+  }
+  
   return 'Pink Drinks'; // Default category
 }
 
@@ -315,7 +338,8 @@ function extractInstructions(content: string): string {
   const instructionPatterns = [
     /instructions?[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
     /how to[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
-    /steps?[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i
+    /steps?[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
+    /recipe[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i
   ];
   
   for (const pattern of instructionPatterns) {
@@ -329,8 +353,22 @@ function extractInstructions(content: string): string {
 }
 
 function extractTags(content: string): string[] {
-  const commonTags = ['viral', 'tiktok', 'instagram', 'popular', 'trending', 'sweet', 'iced', 'hot'];
+  const commonTags = ['viral', 'tiktok', 'instagram', 'lemon8', 'popular', 'trending', 'sweet', 'iced', 'hot', 'frappuccino', 'latte', 'pink', 'fruity'];
   const lowerContent = content.toLowerCase();
   
   return commonTags.filter(tag => lowerContent.includes(tag)).slice(0, 5);
+}
+
+function getDomainFromUrl(url: string): string {
+  try {
+    const domain = new URL(url).hostname;
+    if (domain.includes('tiktok')) return 'TikTok';
+    if (domain.includes('instagram')) return 'Instagram';
+    if (domain.includes('lemon8')) return 'Lemon8';
+    if (domain.includes('youtube')) return 'YouTube';
+    if (domain.includes('twitter') || domain.includes('x.com')) return 'Twitter/X';
+    return domain;
+  } catch {
+    return 'Social Media';
+  }
 }

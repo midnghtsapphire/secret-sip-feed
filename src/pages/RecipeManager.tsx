@@ -1,14 +1,13 @@
 
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmin } from '@/hooks/useAdmin';
 import RecipeForm from '@/components/RecipeForm';
-import RecipePrivacyToggle from '@/components/RecipePrivacyToggle';
 import Header from '@/components/Header';
+import RecipeManagerHeader from '@/components/recipe-manager/RecipeManagerHeader';
+import RecipeList from '@/components/recipe-manager/RecipeList';
+import EmptyRecipeState from '@/components/recipe-manager/EmptyRecipeState';
 import { useToast } from '@/hooks/use-toast';
 
 const RecipeManager = () => {
@@ -53,7 +52,6 @@ const RecipeManager = () => {
       return;
     }
 
-    // Verify user owns the recipe being edited
     if (editingRecipe.user_id !== user.id && !isAdmin) {
       toast({
         title: "Unauthorized",
@@ -86,7 +84,6 @@ const RecipeManager = () => {
       return;
     }
 
-    // Verify user owns the recipe or is admin
     if (recipeUserId !== user.id && !isAdmin) {
       toast({
         title: "Unauthorized",
@@ -120,7 +117,6 @@ const RecipeManager = () => {
       return;
     }
 
-    // Verify user owns the recipe
     if (recipe.user_id !== user.id && !isAdmin) {
       toast({
         title: "Unauthorized",
@@ -131,6 +127,10 @@ const RecipeManager = () => {
     }
 
     setEditingRecipe(recipe);
+  };
+
+  const handleTogglePrivacy = (id, isPublic) => {
+    updateRecipe.mutate({ id, is_public: isPublic });
   };
 
   if (!user) {
@@ -178,7 +178,6 @@ const RecipeManager = () => {
     );
   }
 
-  // Filter recipes to show only user's own recipes (unless admin)
   const visibleRecipes = recipes?.filter(recipe => 
     isAdmin || recipe.user_id === user.id
   ) || [];
@@ -188,21 +187,8 @@ const RecipeManager = () => {
       <Header />
       
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Recipe Manager</h1>
-            <p className="text-gray-600 mt-2">Create and manage your secret Starbucks recipes</p>
-          </div>
-          <Button
-            onClick={() => setShowRecipeForm(true)}
-            className="bg-gradient-to-r from-pink-500 to-purple-600"
-          >
-            <Plus size={20} className="mr-2" />
-            Add Recipe
-          </Button>
-        </div>
+        <RecipeManagerHeader onAddRecipe={() => setShowRecipeForm(true)} />
 
-        {/* Recipes Section */}
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">
@@ -216,75 +202,16 @@ const RecipeManager = () => {
               <p className="text-gray-600 mt-2">Loading recipes...</p>
             </div>
           ) : visibleRecipes.length > 0 ? (
-            <div className="grid gap-4">
-              {visibleRecipes.map((recipe) => (
-                <Card key={recipe.id} className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-800">{recipe.name}</h3>
-                        <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full">
-                          {recipe.category}
-                        </span>
-                        {isAdmin && (
-                          <RecipePrivacyToggle
-                            recipeId={recipe.id}
-                            isPublic={recipe.is_public}
-                            onToggle={(isPublic) => updateRecipe.mutate({ id: recipe.id, is_public: isPublic })}
-                          />
-                        )}
-                      </div>
-                      <p className="text-gray-600 text-sm mb-3">{recipe.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>${recipe.base_price}</span>
-                        <span>{recipe.prep_time_minutes} min</span>
-                        <span>Difficulty: {recipe.difficulty_level}/5</span>
-                        {recipe.tags && recipe.tags.length > 0 && (
-                          <div className="flex gap-1">
-                            {recipe.tags.slice(0, 2).map((tag, index) => (
-                              <span key={index} className="bg-gray-100 px-2 py-0.5 rounded">
-                                #{tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditRecipe(recipe)}
-                      >
-                        Edit
-                      </Button>
-                      {(recipe.user_id === user.id || isAdmin) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteRecipe(recipe.id, recipe.user_id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <RecipeList
+              recipes={visibleRecipes}
+              isAdmin={isAdmin}
+              currentUserId={user.id}
+              onEditRecipe={handleEditRecipe}
+              onDeleteRecipe={handleDeleteRecipe}
+              onTogglePrivacy={handleTogglePrivacy}
+            />
           ) : (
-            <Card className="p-8 text-center">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">No recipes yet</h3>
-              <p className="text-gray-600 mb-4">Create your first recipe to get started!</p>
-              <Button
-                onClick={() => setShowRecipeForm(true)}
-                className="bg-gradient-to-r from-pink-500 to-purple-600"
-              >
-                <Plus size={16} className="mr-2" />
-                Create Recipe
-              </Button>
-            </Card>
+            <EmptyRecipeState onCreateRecipe={() => setShowRecipeForm(true)} />
           )}
         </div>
       </div>
