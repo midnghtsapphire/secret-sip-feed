@@ -29,6 +29,7 @@ export const useRecipeExtraction = () => {
   const { toast } = useToast();
 
   const handleExtract = async () => {
+    console.log('🚀 EXTRACT BUTTON CLICKED - Starting extraction process');
     console.log('🔍 DEBUG: Starting recipe extraction for URL:', url);
     
     if (!url.trim()) {
@@ -43,6 +44,7 @@ export const useRecipeExtraction = () => {
 
     // Clear previous error
     setLastError(null);
+    console.log('✅ DEBUG: Cleared previous errors');
 
     // Validate URL format
     try {
@@ -73,11 +75,13 @@ export const useRecipeExtraction = () => {
     }
 
     console.log('✅ DEBUG: Platform is supported');
+    console.log('🔄 DEBUG: Setting isExtracting to true');
     setIsExtracting(true);
     
     try {
       console.log('🚀 DEBUG: About to call Supabase function extract-recipe');
       console.log('🚀 DEBUG: Supabase client available:', !!supabase);
+      console.log('🚀 DEBUG: Function payload:', { url: url.trim() });
       
       const { data, error } = await supabase.functions.invoke('extract-recipe', {
         body: { url: url.trim() }
@@ -89,6 +93,7 @@ export const useRecipeExtraction = () => {
 
       if (error) {
         console.error('❌ DEBUG: Supabase function error:', error);
+        console.error('❌ DEBUG: Full error object:', JSON.stringify(error, null, 2));
         throw new Error(error.message || 'Failed to extract recipe');
       }
 
@@ -116,6 +121,8 @@ export const useRecipeExtraction = () => {
         });
       } else {
         console.error('❌ DEBUG: No recipe data received:', data);
+        console.error('❌ DEBUG: Data type:', typeof data);
+        console.error('❌ DEBUG: Data keys:', data ? Object.keys(data) : 'data is null/undefined');
         throw new Error('No recipe data received from the extraction service');
       }
     } catch (error: any) {
@@ -135,7 +142,7 @@ export const useRecipeExtraction = () => {
         variant: "destructive",
       });
     } finally {
-      console.log('🏁 DEBUG: Extraction process finished');
+      console.log('🏁 DEBUG: Extraction process finished, setting isExtracting to false');
       setIsExtracting(false);
     }
   };

@@ -19,15 +19,27 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🎯 DEBUG: Form submitted with URL:', url);
+    console.log('📝 FORM SUBMIT: Form submitted with URL:', url);
+    console.log('📝 FORM SUBMIT: isExtracting state:', isExtracting);
+    console.log('📝 FORM SUBMIT: Calling onExtract function...');
     onExtract();
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
-    console.log('📝 DEBUG: URL input changed to:', newUrl);
+    console.log('📝 INPUT CHANGE: URL input changed to:', newUrl);
     onUrlChange(newUrl);
   };
+
+  const handleButtonClick = () => {
+    console.log('🔘 BUTTON CLICK: Extract Recipe button clicked directly');
+    console.log('🔘 BUTTON CLICK: Current URL:', url);
+    console.log('🔘 BUTTON CLICK: Current isExtracting:', isExtracting);
+    console.log('🔘 BUTTON CLICK: Button disabled?', isExtracting || !url.trim());
+    onExtract();
+  };
+
+  console.log('🎯 RENDER: ExtractorForm rendered with:', { url, isExtracting, hasUrl: !!url.trim() });
 
   return (
     <div className="space-y-4">
@@ -49,6 +61,7 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({
             type="submit"
             disabled={isExtracting || !url.trim()}
             className="bg-gradient-to-r from-pink-500 to-purple-600"
+            onClick={handleButtonClick}
           >
             {isExtracting ? (
               <>
