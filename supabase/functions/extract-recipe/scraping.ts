@@ -77,7 +77,7 @@ export async function runApifyActor(actorId: string, runInput: ApifyRunInput, ap
     throw new Error(`Apify run failed with status: ${runStatus}`);
   }
 
-  // Get results from the correct dataset URL - this was the bug!
+  // Get results from the correct dataset URL
   const resultsResponse = await fetch(`https://api.apify.com/v2/datasets/${runData.data.defaultDatasetId}/items`, {
     headers: {
       'Authorization': `Bearer ${apiToken}`,
@@ -120,28 +120,12 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
       }
     };
   } else if (url.includes('lemon8')) {
-    // For Lemon8, use a working web scraper with better configuration
+    // Try the TikTok scraper first as it might handle Lemon8 better
     return {
-      actorId: 'aYG0l9s7dbB7j3gbS', // Website Content Crawler - a more reliable general scraper
+      actorId: 'OtzYfK1ndEGdwWFKQ', // TikTok Scraper - they're related platforms
       runInput: {
-        startUrls: [{ url }],
-        maxRequestRetries: 3,
-        maxPages: 1,
-        waitUntil: 'networkidle',
-        pageFunction: `async function pageFunction(context) {
-          const { page, request } = context;
-          const title = await page.title();
-          const content = await page.evaluate(() => {
-            return document.body.innerText || document.body.textContent || '';
-          });
-          
-          return {
-            url: request.url,
-            title: title,
-            text: content,
-            content: content
-          };
-        }`
+        postURLs: [url],
+        maxItems: 1
       }
     };
   } else {
@@ -164,10 +148,8 @@ export function extractContentFromApifyResult(result: any, url: string): string 
   
   if (url.includes('instagram')) {
     return result.caption || result.text || result.description || '';
-  } else if (url.includes('tiktok')) {
+  } else if (url.includes('tiktok') || url.includes('lemon8')) {
     return result.text || result.description || result.caption || '';
-  } else if (url.includes('lemon8')) {
-    return result.text || result.content || result.description || result.caption || result.title || '';
   } else {
     return result.text || result.content || result.description || result.title || '';
   }

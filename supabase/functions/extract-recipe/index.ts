@@ -104,6 +104,25 @@ serve(async (req) => {
       console.log('🎯 Processing first result:', Object.keys(firstResult));
       console.log('📄 First result content preview:', JSON.stringify(firstResult, null, 2).slice(0, 1000));
       
+      // Check for 404 or error responses
+      if (firstResult.crawl?.httpStatusCode === 404) {
+        console.error('❌ Target URL returned 404 Not Found');
+        return createErrorResponse(
+          'Content not found',
+          'The social media post could not be found. It may have been deleted, made private, or the URL is incorrect. Please check the URL and try again.',
+          404
+        );
+      }
+      
+      if (firstResult.crawl?.httpStatusCode && firstResult.crawl.httpStatusCode >= 400) {
+        console.error('❌ Target URL returned error status:', firstResult.crawl.httpStatusCode);
+        return createErrorResponse(
+          'Content access error',
+          `The social media post returned an error (${firstResult.crawl.httpStatusCode}). It may be private or temporarily unavailable.`,
+          422
+        );
+      }
+      
       const content = extractContentFromApifyResult(firstResult, sanitizedUrl);
       console.log('📝 Extracted content length:', content.length);
       console.log('📖 Content preview:', content.substring(0, 500));
@@ -114,6 +133,16 @@ serve(async (req) => {
         return createErrorResponse(
           'App redirect detected',
           'The URL appears to redirect to an app download page. Try using a direct link to the content instead.',
+          422
+        );
+      }
+
+      // Check for insufficient content
+      if (content.length < 20) {
+        console.error('❌ Insufficient content extracted');
+        return createErrorResponse(
+          'Insufficient content',
+          'Very little content was extracted from this URL. The post may not contain recipe information or may not be publicly accessible.',
           422
         );
       }
@@ -151,7 +180,7 @@ serve(async (req) => {
         console.error('📋 Full result structure:', Object.keys(firstResult));
         return createErrorResponse(
           'No valid recipe content found',
-          `Could not extract a valid recipe name from the content. Debug info:\n- Actor: ${actorId}\n- Content length: ${content.length}\n- Result keys: ${Object.keys(firstResult).join(', ')}\n- Content preview: ${content.slice(0, 200)}...`,
+          `Could not extract a valid recipe name from the content. This URL may not contain recipe information, or the content format is not supported.\n\nDebug info:\n- Platform actor: ${actorId}\n- Content length: ${content.length} characters\n- HTTP status: ${firstResult.crawl?.httpStatusCode || 'Unknown'}\n\nPlease ensure the URL points to a recipe post and is publicly accessible.`,
           422
         );
       }
@@ -179,7 +208,7 @@ serve(async (req) => {
       // Return detailed error information for debugging
       return createErrorResponse(
         'Extraction failed',
-        `Apify actor error: ${error.message}\n\nDebug info:\n- Error type: ${error.name}\n- Stack trace: ${error.stack?.split('\n').slice(0, 3).join('\n')}`,
+        `Scraping error: ${error.message}\n\nThis could be caused by:\n1. The social media platform blocking automated access\n2. Network connectivity issues\n3. The post being private or deleted\n4. Rate limiting by the platform\n\nPlease try again in a few minutes, or try a different URL.`,
         500
       );
     }
@@ -193,7 +222,7 @@ serve(async (req) => {
     });
     return createErrorResponse(
       'Internal server error',
-      `Unexpected error: ${error.message}`,
+      `Server error: ${error.message}`,
       500
     );
   }
