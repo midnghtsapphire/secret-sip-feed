@@ -26,9 +26,12 @@ const Index = () => {
   ];
 
   const menuChoices = [
+    'Pretty n Pink',
+    'Mad Matchas', 
+    'Blues Clues',
+    'Foam Frenzy',
     'Frappuccinos',
-    'Lattes', 
-    'Macchiatos',
+    'Lattes',
     'Cold Brew',
     'Refreshers',
     'Tea Lattes',
@@ -36,9 +39,6 @@ const Index = () => {
     'Iced Coffees',
     'Chocolate Dreams',
     'Mocha Logic',
-    'Mad Matchas',
-    'Pretty n Pink',
-    'Blues Clues',
     'Syrup Series - Multi Syrup',
     'Copycat Classics',
     'Make Your Own Creations'
