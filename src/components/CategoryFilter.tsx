@@ -15,10 +15,11 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'all': return '🔥';
-      case 'pink drinks': return '💗';
-      case 'blue drinks': return '🧊';
-      case 'green teas': return '🍃';
-      case 'foam mixologists': return '☁️';
+      case 'pretty n pink': return '🌸';
+      case 'mad matchas': return '🍵';
+      case 'blues clues': return '🧊';
+      case 'foam frenzy': return '☁️';
+      case 'mocha magic': return '☕';
       case 'budget babe brews': return '💰';
       default: return '🥤';
     }
