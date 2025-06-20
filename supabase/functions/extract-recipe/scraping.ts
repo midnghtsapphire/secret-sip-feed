@@ -24,6 +24,8 @@ export interface ApifyRunInput {
 }
 
 export async function runApifyActor(actorId: string, runInput: ApifyRunInput, apiToken: string, options: ApifyRunOptions) {
+  console.log('Starting Apify actor run with ID:', actorId);
+  
   // Start the Apify actor run
   const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs`, {
     method: 'POST',
@@ -34,12 +36,17 @@ export async function runApifyActor(actorId: string, runInput: ApifyRunInput, ap
     body: JSON.stringify(runInput)
   });
 
+  console.log('Apify run response status:', runResponse.status);
+
   if (!runResponse.ok) {
-    throw new Error(`Failed to start Apify run: ${runResponse.status}`);
+    const errorText = await runResponse.text();
+    console.error('Apify run failed:', errorText);
+    throw new Error(`Failed to start Apify run: ${runResponse.status} - ${errorText}`);
   }
 
   const runData = await runResponse.json();
   const runId = runData.data.id;
+  console.log('Apify run started with ID:', runId);
 
   // Wait for completion
   let attempts = 0;
@@ -57,39 +64,48 @@ export async function runApifyActor(actorId: string, runInput: ApifyRunInput, ap
     if (statusResponse.ok) {
       const statusData = await statusResponse.json();
       runStatus = statusData.data.status;
+      console.log('Run status check:', runStatus, 'attempt:', attempts + 1);
     }
     
     attempts++;
   }
 
   if (runStatus !== 'SUCCEEDED') {
+    console.error('Run final status:', runStatus);
     throw new Error(`Apify run failed with status: ${runStatus}`);
   }
 
-  // Get results
+  // Get results from the default dataset
   const resultsResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}/dataset/items`, {
     headers: {
       'Authorization': `Bearer ${apiToken}`,
     }
   });
 
+  console.log('Results response status:', resultsResponse.status);
+
   if (!resultsResponse.ok) {
-    throw new Error(`Failed to get results: ${resultsResponse.status}`);
+    const errorText = await resultsResponse.text();
+    console.error('Failed to get results:', errorText);
+    throw new Error(`Failed to get results: ${resultsResponse.status} - ${errorText}`);
   }
 
-  return await resultsResponse.json();
+  const results = await resultsResponse.json();
+  console.log('Results retrieved successfully, count:', results.length);
+  
+  return results;
 }
 
 export function getActorIdForPlatform(url: string): { actorId: string; runInput: ApifyRunInput } {
+  console.log('Determining actor for URL:', url);
+  
   if (url.includes('instagram')) {
     return {
       actorId: 'shu8hvrXbJbY3Eb9W', // Instagram Scraper
       runInput: {
         directUrls: [url],
         resultsType: 'posts',
-        resultsLimit: 1,
-        searchType: 'hashtag',
-        searchLimit: 1
+        resultsLimit: 1
       }
     };
   } else if (url.includes('tiktok')) {
@@ -100,9 +116,19 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
         maxItems: 1
       }
     };
+  } else if (url.includes('lemon8')) {
+    // For Lemon8, use a general web scraper as it's more reliable
+    return {
+      actorId: 'apify/web-scraper', // General Web Scraper
+      runInput: {
+        startUrls: [{ url }],
+        maxRequestRetries: 3,
+        maxPages: 1
+      }
+    };
   } else {
     return {
-      actorId: 'A3ugHq174iKd7kG4F', // Web Scraper
+      actorId: 'apify/web-scraper', // General Web Scraper
       runInput: {
         startUrls: [{ url }],
         maxRequestRetries: 3,
@@ -113,11 +139,16 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
 }
 
 export function extractContentFromApifyResult(result: any, url: string): string {
+  console.log('Extracting content from result for URL:', url);
+  console.log('Result keys:', Object.keys(result));
+  
   if (url.includes('instagram')) {
-    return result.caption || result.text || '';
+    return result.caption || result.text || result.description || '';
   } else if (url.includes('tiktok')) {
-    return result.text || result.description || '';
+    return result.text || result.description || result.caption || '';
+  } else if (url.includes('lemon8')) {
+    return result.text || result.content || result.description || result.caption || '';
   } else {
-    return result.text || result.content || '';
+    return result.text || result.content || result.description || '';
   }
 }

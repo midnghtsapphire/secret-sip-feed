@@ -5,6 +5,7 @@ import { isValidUrl, isDomainAllowed, sanitizeInput, validateRequest, defaultCon
 import { extractRecipeName, extractDescription, extractCategory, extractInstructions, extractTags, getDomainFromUrl } from './content-extraction.ts';
 import { isAppRedirectContent, isValidRecipeName } from './content-validation.ts';
 import { corsHeaders, createErrorResponse, createSuccessResponse, handleOptionsRequest } from './http-utils.ts';
+import { runApifyActor, getActorIdForPlatform, extractContentFromApifyResult, defaultApifyOptions } from './scraping.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -73,107 +74,11 @@ serve(async (req) => {
 
     // Extract content using Apify
     try {
-      // Determine which Apify actor to use based on the platform
-      let actorId = '';
-      let runInput = {};
+      const { actorId, runInput } = getActorIdForPlatform(sanitizedUrl);
+      console.log('Using actor ID:', actorId);
+      console.log('Run input:', JSON.stringify(runInput, null, 2));
 
-      if (sanitizedUrl.includes('instagram')) {
-        actorId = 'shu8hvrXbJbY3Eb9W'; // Instagram Scraper
-        runInput = {
-          directUrls: [sanitizedUrl],
-          resultsType: 'posts',
-          resultsLimit: 1,
-          searchType: 'hashtag',
-          searchLimit: 1
-        };
-      } else if (sanitizedUrl.includes('tiktok')) {
-        actorId = 'OtzYfK1ndEGdwWFKQ'; // TikTok Scraper
-        runInput = {
-          postURLs: [sanitizedUrl],
-          maxItems: 1
-        };
-      } else {
-        // For other platforms, use a general web scraper
-        actorId = 'A3ugHq174iKd7kG4F'; // Web Scraper
-        runInput = {
-          startUrls: [{ url: sanitizedUrl }],
-          maxRequestRetries: 3,
-          maxPages: 1
-        };
-      }
-
-      // Start the Apify actor run
-      const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apifyApiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(runInput)
-      });
-
-      if (!runResponse.ok) {
-        console.error('Failed to start Apify run:', runResponse.status);
-        return createErrorResponse(
-          'Unable to extract recipe content from this URL',
-          'The social media platform may be blocking automated access or the content is not accessible.',
-          502
-        );
-      }
-
-      const runData = await runResponse.json();
-      const runId = runData.data.id;
-      console.log('Apify run started:', runId);
-
-      // Wait for the run to complete (with timeout)
-      let attempts = 0;
-      const maxAttempts = 30; // 30 seconds timeout
-      let runStatus = 'RUNNING';
-
-      while (runStatus === 'RUNNING' && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-        
-        const statusResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}`, {
-          headers: {
-            'Authorization': `Bearer ${apifyApiToken}`,
-          }
-        });
-
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          runStatus = statusData.data.status;
-          console.log('Run status:', runStatus);
-        }
-        
-        attempts++;
-      }
-
-      if (runStatus !== 'SUCCEEDED') {
-        console.error('Apify run did not succeed:', runStatus);
-        return createErrorResponse(
-          'Extraction timeout or failed',
-          'The extraction took too long or failed. Please try again or use a different URL.',
-          408
-        );
-      }
-
-      // Get the results
-      const resultsResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs/${runId}/dataset/items`, {
-        headers: {
-          'Authorization': `Bearer ${apifyApiToken}`,
-        }
-      });
-
-      if (!resultsResponse.ok) {
-        console.error('Failed to get Apify results:', resultsResponse.status);
-        return createErrorResponse(
-          'Failed to retrieve extraction results',
-          'Unable to get the extracted data from the scraping service.',
-          502
-        );
-      }
-
-      const results = await resultsResponse.json();
+      const results = await runApifyActor(actorId, runInput, apifyApiToken, defaultApifyOptions);
       console.log('Apify results received, count:', results.length);
 
       if (!results || results.length === 0) {
@@ -187,16 +92,7 @@ serve(async (req) => {
 
       // Process the first result
       const firstResult = results[0];
-      let content = '';
-
-      // Extract content based on platform
-      if (sanitizedUrl.includes('instagram')) {
-        content = firstResult.caption || firstResult.text || '';
-      } else if (sanitizedUrl.includes('tiktok')) {
-        content = firstResult.text || firstResult.description || '';
-      } else {
-        content = firstResult.text || firstResult.content || '';
-      }
+      const content = extractContentFromApifyResult(firstResult, sanitizedUrl);
 
       console.log('Content extracted, length:', content.length);
       console.log('Content preview:', content.substring(0, 300));
