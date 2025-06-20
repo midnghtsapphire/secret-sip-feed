@@ -31,7 +31,32 @@ export async function scrapeContent(url: string, apiKey: string, options: Scrape
         },
         extractorOptions: {
           mode: 'llm-extraction',
-          extractionPrompt: 'Extract recipe name, ingredients, instructions, and drink details from this social media post. Ignore app download prompts and navigation elements.'
+          extractionPrompt: 'Extract recipe name, ingredients, instructions, and drink details from this social media post. Ignore app download prompts and navigation elements.',
+          extractionSchema: {
+            type: "object",
+            properties: {
+              recipeName: {
+                type: "string",
+                description: "The name of the recipe or drink"
+              },
+              ingredients: {
+                type: "array",
+                items: {
+                  type: "string"
+                },
+                description: "List of ingredients mentioned"
+              },
+              instructions: {
+                type: "string",
+                description: "Instructions for making the recipe"
+              },
+              description: {
+                type: "string",
+                description: "Brief description of the recipe"
+              }
+            },
+            required: ["recipeName"]
+          }
         }
       }),
       signal: controller.signal
