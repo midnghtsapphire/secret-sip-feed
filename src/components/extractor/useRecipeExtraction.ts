@@ -7,6 +7,7 @@ interface ExtractedRecipe {
   name: string;
   description: string;
   imageUrl: string;
+  images?: string[];
   ingredients?: string[];
   instructions?: string;
   menuItems?: Array<{
@@ -28,6 +29,8 @@ export const useRecipeExtraction = () => {
   const { toast } = useToast();
 
   const handleExtract = async () => {
+    console.log('Starting recipe extraction for URL:', url);
+    
     if (!url.trim()) {
       toast({
         title: "URL Required",
@@ -53,13 +56,13 @@ export const useRecipeExtraction = () => {
     }
 
     // Validate URL is from supported platforms
-    const supportedPlatforms = ['tiktok.com', 'instagram.com', 'lemon8'];
+    const supportedPlatforms = ['tiktok.com', 'instagram.com', 'lemon8', 'youtube.com', 'twitter.com', 'x.com'];
     const isSupported = supportedPlatforms.some(platform => url.toLowerCase().includes(platform));
     
     if (!isSupported) {
       toast({
         title: "Unsupported Platform",
-        description: "Please use a TikTok, Instagram, or Lemon8 URL",
+        description: "Please use a TikTok, Instagram, Lemon8, YouTube, or Twitter/X URL",
         variant: "destructive",
       });
       return;
@@ -68,21 +71,22 @@ export const useRecipeExtraction = () => {
     setIsExtracting(true);
     
     try {
-      console.log('Extracting recipe from:', url);
+      console.log('Calling Supabase function with URL:', url);
       
       const { data, error } = await supabase.functions.invoke('extract-recipe', {
-        body: { url }
+        body: { url: url.trim() }
       });
+
+      console.log('Supabase function response:', { data, error });
 
       if (error) {
         console.error('Supabase function error:', error);
         throw new Error(error.message || 'Failed to extract recipe');
       }
 
-      console.log('Raw extraction response:', data);
-
       if (data && data.error) {
         const fullError = data.details ? `${data.error}\n\n${data.details}` : data.error;
+        console.error('Function returned error:', fullError);
         setLastError(fullError);
         
         toast({
@@ -94,6 +98,7 @@ export const useRecipeExtraction = () => {
       }
 
       if (data && data.name) {
+        console.log('Recipe extracted successfully:', data.name);
         console.log('Menu items found:', data.menuItems?.length || 0);
         if (data.menuItems && data.menuItems.length > 0) {
           console.log('Menu items:', data.menuItems);
@@ -101,10 +106,11 @@ export const useRecipeExtraction = () => {
         
         setExtractedRecipe(data);
         toast({
-          title: "Recipe Extracted!",
+          title: "Recipe Extracted! 🎉",
           description: `Successfully extracted "${data.name}" from ${data.source}${data.menuItems?.length ? ` with ${data.menuItems.length} menu items` : ''}`,
         });
       } else {
+        console.error('No recipe data received:', data);
         throw new Error('No recipe data received from the extraction service');
       }
     } catch (error: any) {
@@ -123,6 +129,7 @@ export const useRecipeExtraction = () => {
   };
 
   const handleReset = () => {
+    console.log('Resetting extraction state');
     setExtractedRecipe(null);
     setUrl('');
     setLastError(null);

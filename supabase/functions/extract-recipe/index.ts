@@ -77,9 +77,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting recipe extraction request');
+
     // Request size validation
     const contentLength = req.headers.get('content-length');
     if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+      console.error('Request too large:', contentLength);
       return new Response(
         JSON.stringify({ error: 'Request too large' }),
         { 
@@ -95,6 +98,7 @@ serve(async (req) => {
                     'unknown';
     
     if (!checkRateLimit(clientId)) {
+      console.error('Rate limit exceeded for client:', clientId);
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded' }),
         { 
@@ -108,7 +112,9 @@ serve(async (req) => {
     let body;
     try {
       body = await req.json();
-    } catch {
+      console.log('Request body received:', { url: body?.url ? 'URL present' : 'No URL' });
+    } catch (e) {
+      console.error('Failed to parse JSON:', e);
       return new Response(
         JSON.stringify({ error: 'Invalid JSON in request body' }),
         { 
@@ -122,6 +128,7 @@ serve(async (req) => {
 
     // Input validation
     if (!url || typeof url !== 'string') {
+      console.error('Invalid URL provided:', url);
       return new Response(
         JSON.stringify({ error: 'URL is required and must be a string' }),
         { 
@@ -132,8 +139,10 @@ serve(async (req) => {
     }
 
     const sanitizedUrl = sanitizeInput(url);
+    console.log('Processing URL:', sanitizedUrl);
 
     if (!isValidUrl(sanitizedUrl)) {
+      console.error('Invalid URL format:', sanitizedUrl);
       return new Response(
         JSON.stringify({ error: 'Invalid URL format' }),
         { 
@@ -144,6 +153,7 @@ serve(async (req) => {
     }
 
     if (!isDomainAllowed(sanitizedUrl)) {
+      console.error('Domain not allowed:', sanitizedUrl);
       return new Response(
         JSON.stringify({ error: 'Domain not allowed. Supported platforms: TikTok, Instagram, Lemon8, YouTube, Twitter/X' }),
         { 
@@ -158,13 +168,15 @@ serve(async (req) => {
     if (!firecrawlApiKey) {
       console.error('FIRECRAWL_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
+        JSON.stringify({ error: 'Service configuration error - API key missing' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
+
+    console.log('Making Firecrawl request...');
 
     // Scrape content with Firecrawl with timeout
     const controller = new AbortController();
@@ -189,10 +201,13 @@ serve(async (req) => {
 
       clearTimeout(timeoutId);
 
+      console.log('Firecrawl response status:', scrapeResponse.status);
+
       if (!scrapeResponse.ok) {
-        console.error('Firecrawl API error:', scrapeResponse.status);
+        const errorText = await scrapeResponse.text();
+        console.error('Firecrawl API error:', scrapeResponse.status, errorText);
         return new Response(
-          JSON.stringify({ error: 'Failed to scrape content' }),
+          JSON.stringify({ error: 'Failed to scrape content', details: errorText }),
           { 
             status: 502, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -201,10 +216,12 @@ serve(async (req) => {
       }
 
       const scrapeData = await scrapeResponse.json();
+      console.log('Firecrawl response success:', scrapeData.success);
       
       if (!scrapeData.success || !scrapeData.data?.content) {
+        console.error('No content found in scrape response');
         return new Response(
-          JSON.stringify({ error: 'No content found' }),
+          JSON.stringify({ error: 'No content found at the provided URL' }),
           { 
             status: 404, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -214,6 +231,7 @@ serve(async (req) => {
 
       // Extract recipe information with basic validation
       const content = scrapeData.data.content.slice(0, 10000); // Limit content size
+      console.log('Content extracted, length:', content.length);
       
       const recipe = {
         name: extractRecipeName(content),
@@ -221,15 +239,19 @@ serve(async (req) => {
         category: extractCategory(content),
         instructions: extractInstructions(content),
         tags: extractTags(content),
-        imageUrl: scrapeData.data.metadata?.image || null,
+        imageUrl: scrapeData.data.metadata?.image || '/placeholder.svg',
+        images: scrapeData.data.metadata?.image ? [scrapeData.data.metadata.image] : [],
         source: getDomainFromUrl(sanitizedUrl),
         originalUrl: sanitizedUrl
       };
 
+      console.log('Recipe extracted:', { name: recipe.name, category: recipe.category });
+
       // Validate extracted data
       if (!recipe.name || recipe.name.length < 2) {
+        console.error('Could not extract valid recipe name');
         return new Response(
-          JSON.stringify({ error: 'Could not extract valid recipe name' }),
+          JSON.stringify({ error: 'Could not extract valid recipe name from the content' }),
           { 
             status: 422, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -237,6 +259,7 @@ serve(async (req) => {
         );
       }
 
+      console.log('Returning successful recipe extraction');
       return new Response(
         JSON.stringify(recipe),
         { 
@@ -248,8 +271,9 @@ serve(async (req) => {
       clearTimeout(timeoutId);
       
       if (error.name === 'AbortError') {
+        console.error('Request timeout');
         return new Response(
-          JSON.stringify({ error: 'Request timeout' }),
+          JSON.stringify({ error: 'Request timeout - the website took too long to respond' }),
           { 
             status: 408, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -259,7 +283,7 @@ serve(async (req) => {
       
       console.error('Scraping error:', error);
       return new Response(
-        JSON.stringify({ error: 'Internal server error' }),
+        JSON.stringify({ error: 'Failed to scrape website', details: error.message }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -270,7 +294,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -292,26 +316,41 @@ function extractRecipeName(content: string): string {
   for (const pattern of patterns) {
     const match = content.match(pattern);
     if (match && match[1]) {
-      return sanitizeInput(match[1].trim());
+      const name = sanitizeInput(match[1].trim());
+      if (name.length > 2) {
+        return name;
+      }
     }
   }
   
   // Fallback: look for title-like content
   const lines = content.split('\n').filter(line => line.trim().length > 0);
   if (lines.length > 0) {
-    return sanitizeInput(lines[0].substring(0, 100));
+    const firstLine = sanitizeInput(lines[0].substring(0, 100));
+    if (firstLine.length > 2) {
+      return firstLine;
+    }
   }
   
-  return 'Imported Recipe';
+  return 'Viral Social Media Recipe';
 }
 
 function extractDescription(content: string): string {
-  const sentences = content.split(/[.!?]/).slice(0, 3);
+  const sentences = content.split(/[.!?]/).slice(0, 3).filter(s => s.trim().length > 0);
   return sanitizeInput(sentences.join('. '));
 }
 
 function extractCategory(content: string): string {
-  const categories = ['Pink Drinks', 'Blue Drinks', 'Green Teas', 'Foam Experts', 'Budget Babe Brews', 'Viral Today'];
+  // Updated categories to match the app's categories
+  const categories = [
+    'Pretty n Pink',
+    'Mad Matchas', 
+    'Blues Clues',
+    'Foam Frenzy',
+    'Mocha Magic',
+    'Budget Babe Brews'
+  ];
+  
   const lowerContent = content.toLowerCase();
   
   for (const category of categories) {
@@ -321,17 +360,26 @@ function extractCategory(content: string): string {
   }
   
   // Check for drink type keywords
-  if (lowerContent.includes('pink') || lowerContent.includes('strawberry')) {
-    return 'Pink Drinks';
+  if (lowerContent.includes('pink') || lowerContent.includes('strawberry') || lowerContent.includes('berry')) {
+    return 'Pretty n Pink';
   }
-  if (lowerContent.includes('blue') || lowerContent.includes('berry')) {
-    return 'Blue Drinks';
+  if (lowerContent.includes('blue') || lowerContent.includes('blueberry')) {
+    return 'Blues Clues';
   }
   if (lowerContent.includes('matcha') || lowerContent.includes('green tea')) {
-    return 'Green Teas';
+    return 'Mad Matchas';
+  }
+  if (lowerContent.includes('foam') || lowerContent.includes('frothy') || lowerContent.includes('whip')) {
+    return 'Foam Frenzy';
+  }
+  if (lowerContent.includes('mocha') || lowerContent.includes('chocolate') || lowerContent.includes('coffee')) {
+    return 'Mocha Magic';
+  }
+  if (lowerContent.includes('cheap') || lowerContent.includes('budget') || lowerContent.includes('under') || lowerContent.includes('$')) {
+    return 'Budget Babe Brews';
   }
   
-  return 'Pink Drinks'; // Default category
+  return 'Pretty n Pink'; // Default category
 }
 
 function extractInstructions(content: string): string {
@@ -349,11 +397,13 @@ function extractInstructions(content: string): string {
     }
   }
   
-  return '';
+  // Fallback: use first few sentences as instructions
+  const sentences = content.split(/[.!?]/).slice(0, 5).filter(s => s.trim().length > 10);
+  return sanitizeInput(sentences.join('. '));
 }
 
 function extractTags(content: string): string[] {
-  const commonTags = ['viral', 'tiktok', 'instagram', 'lemon8', 'popular', 'trending', 'sweet', 'iced', 'hot', 'frappuccino', 'latte', 'pink', 'fruity'];
+  const commonTags = ['viral', 'tiktok', 'instagram', 'lemon8', 'popular', 'trending', 'sweet', 'iced', 'hot', 'frappuccino', 'latte', 'pink', 'fruity', 'budget', 'cheap'];
   const lowerContent = content.toLowerCase();
   
   return commonTags.filter(tag => lowerContent.includes(tag)).slice(0, 5);

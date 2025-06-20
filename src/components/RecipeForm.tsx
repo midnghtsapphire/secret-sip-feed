@@ -49,35 +49,44 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   ];
 
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
-    console.log('Extracted recipe:', extractedRecipe);
+    console.log('Handling extracted recipe in RecipeForm:', extractedRecipe);
     
     // Set all the extracted data
     if (extractedRecipe.name) {
+      console.log('Setting recipe name:', extractedRecipe.name);
       form.setValue('name', extractedRecipe.name);
     }
     
     if (extractedRecipe.description) {
+      console.log('Setting recipe description');
       form.setValue('description', extractedRecipe.description);
     }
     
     if (extractedRecipe.category) {
-      form.setValue('category', extractedRecipe.category);
+      console.log('Setting recipe category:', extractedRecipe.category);
+      // Make sure the category matches our available categories
+      const validCategory = categories.includes(extractedRecipe.category) 
+        ? extractedRecipe.category 
+        : 'Pretty n Pink';
+      form.setValue('category', validCategory);
     }
     
     // Handle multiple images
     const images = []
     if (extractedRecipe.images && Array.isArray(extractedRecipe.images)) {
-      images.push(...extractedRecipe.images.filter(img => img && typeof img === 'string'))
+      images.push(...extractedRecipe.images.filter(img => img && typeof img === 'string' && img !== '/placeholder.svg'))
     } else if (extractedRecipe.imageUrl && extractedRecipe.imageUrl !== '/placeholder.svg') {
       images.push(extractedRecipe.imageUrl)
     }
     
     if (images.length > 0) {
+      console.log('Setting recipe images:', images.length);
       form.setValue('images', images)
       form.setValue('image_url', images[0]) // Primary image
     }
     
     if (extractedRecipe.instructions) {
+      console.log('Setting recipe instructions');
       form.setValue('instructions', extractedRecipe.instructions);
     }
     
@@ -86,7 +95,10 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     if (extractedRecipe.tags && Array.isArray(extractedRecipe.tags)) {
       tags = extractedRecipe.tags.filter(tag => tag && tag.length > 0);
     }
-    form.setValue('tags', tags.join(', '));
+    if (tags.length > 0) {
+      console.log('Setting recipe tags:', tags);
+      form.setValue('tags', tags.join(', '));
+    }
 
     // Set other fields with defaults
     form.setValue('base_price', 5.50);
@@ -94,10 +106,13 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     form.setValue('prep_time_minutes', 10);
     form.setValue('is_public', true);
 
+    console.log('Hiding social extractor');
     setShowSocialExtractor(false);
   };
 
   const handleSubmit = (data: any) => {
+    console.log('Submitting recipe form data:', data);
+    
     const recipeData = {
       ...data,
       // Use the first image as primary, handle the images array separately if needed
@@ -106,7 +121,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       base_price: parseFloat(data.base_price) || 0,
     };
     
-    console.log('Submitting recipe:', recipeData);
+    console.log('Final recipe data for submission:', recipeData);
     onSubmit(recipeData);
   };
 
