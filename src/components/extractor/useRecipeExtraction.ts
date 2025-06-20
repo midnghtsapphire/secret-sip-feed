@@ -110,7 +110,25 @@ export const useRecipeExtraction = () => {
       if (error) {
         console.error('❌ DEBUG: Supabase function error:', error);
         console.error('❌ DEBUG: Full error object:', JSON.stringify(error, null, 2));
-        throw new Error(error.message || 'Failed to extract recipe');
+        
+        // Provide more specific error messages based on the platform
+        let userFriendlyMessage = 'Failed to extract recipe from the URL';
+        
+        if (urlToUse.includes('lemon8')) {
+          userFriendlyMessage = 'Lemon8 is blocking access to this recipe. Try copying the recipe details manually or find it on TikTok/Instagram instead.';
+        } else if (urlToUse.includes('instagram')) {
+          userFriendlyMessage = 'Instagram is blocking access to this post. The post might be private or require login to view.';
+        } else if (urlToUse.includes('tiktok')) {
+          userFriendlyMessage = 'TikTok is blocking access to this video. Try a different TikTok URL or copy the recipe manually.';
+        }
+        
+        setLastError(userFriendlyMessage);
+        toast({
+          title: "Extraction Failed",
+          description: userFriendlyMessage,
+          variant: "destructive",
+        });
+        return;
       }
 
       if (data && data.error) {
@@ -139,7 +157,20 @@ export const useRecipeExtraction = () => {
         console.error('❌ DEBUG: No recipe data received:', data);
         console.error('❌ DEBUG: Data type:', typeof data);
         console.error('❌ DEBUG: Data keys:', data ? Object.keys(data) : 'data is null/undefined');
-        throw new Error('No recipe data received from the extraction service');
+        
+        // Provide platform-specific guidance
+        let platformMessage = 'No recipe content could be extracted from this URL.';
+        
+        if (urlToUse.includes('lemon8')) {
+          platformMessage = 'Lemon8 posts are often blocked from extraction. Try finding the same recipe on TikTok or Instagram, or enter the recipe details manually.';
+        }
+        
+        setLastError(platformMessage);
+        toast({
+          title: "No Recipe Found",
+          description: platformMessage,
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       console.error('💥 DEBUG: Error extracting recipe:', error);
@@ -149,7 +180,13 @@ export const useRecipeExtraction = () => {
         name: error.name
       });
       
-      const errorMessage = error.message || "Failed to extract recipe from the URL";
+      let errorMessage = error.message || "Failed to extract recipe from the URL";
+      
+      // Provide platform-specific error messages
+      if (urlToUse.includes('lemon8')) {
+        errorMessage = 'Lemon8 is protecting this content and blocking extraction. Try finding the recipe on TikTok or Instagram instead.';
+      }
+      
       setLastError(errorMessage);
       
       toast({
