@@ -21,6 +21,8 @@ export interface ApifyRunInput {
   maxItems?: number;
   maxRequestRetries?: number;
   maxPages?: number;
+  waitUntil?: string;
+  pageFunction?: string;
 }
 
 export async function runApifyActor(actorId: string, runInput: ApifyRunInput, apiToken: string, options: ApifyRunOptions) {
@@ -117,22 +119,38 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
       }
     };
   } else if (url.includes('lemon8')) {
-    // For Lemon8, use a general web scraper as it's more reliable
+    // For Lemon8, use a working web scraper with better configuration
     return {
-      actorId: 'apify/web-scraper', // General Web Scraper
+      actorId: 'aYG0l9s7dbB7j3gbS', // Website Content Crawler - a more reliable general scraper
       runInput: {
         startUrls: [{ url }],
         maxRequestRetries: 3,
-        maxPages: 1
+        maxPages: 1,
+        waitUntil: 'networkidle',
+        pageFunction: `async function pageFunction(context) {
+          const { page, request } = context;
+          const title = await page.title();
+          const content = await page.evaluate(() => {
+            return document.body.innerText || document.body.textContent || '';
+          });
+          
+          return {
+            url: request.url,
+            title: title,
+            text: content,
+            content: content
+          };
+        }`
       }
     };
   } else {
     return {
-      actorId: 'apify/web-scraper', // General Web Scraper
+      actorId: 'aYG0l9s7dbB7j3gbS', // Website Content Crawler
       runInput: {
         startUrls: [{ url }],
         maxRequestRetries: 3,
-        maxPages: 1
+        maxPages: 1,
+        waitUntil: 'networkidle'
       }
     };
   }
@@ -141,14 +159,15 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
 export function extractContentFromApifyResult(result: any, url: string): string {
   console.log('Extracting content from result for URL:', url);
   console.log('Result keys:', Object.keys(result));
+  console.log('Result content preview:', JSON.stringify(result, null, 2).slice(0, 500));
   
   if (url.includes('instagram')) {
     return result.caption || result.text || result.description || '';
   } else if (url.includes('tiktok')) {
     return result.text || result.description || result.caption || '';
   } else if (url.includes('lemon8')) {
-    return result.text || result.content || result.description || result.caption || '';
+    return result.text || result.content || result.description || result.caption || result.title || '';
   } else {
-    return result.text || result.content || result.description || '';
+    return result.text || result.content || result.description || result.title || '';
   }
 }
