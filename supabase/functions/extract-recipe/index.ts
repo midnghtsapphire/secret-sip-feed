@@ -178,7 +178,7 @@ serve(async (req) => {
 
     console.log('Making Firecrawl request...');
 
-    // Scrape content with Firecrawl with timeout
+    // Scrape content with Firecrawl with timeout and better mobile handling
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
@@ -193,7 +193,13 @@ serve(async (req) => {
           url: sanitizedUrl,
           pageOptions: {
             onlyMainContent: true,
-            includeHtml: false
+            includeHtml: false,
+            waitFor: 2000, // Wait for dynamic content
+            screenshot: false
+          },
+          extractorOptions: {
+            mode: 'llm-extraction',
+            extractionPrompt: 'Extract recipe name, ingredients, instructions, and drink details from this social media post. Ignore app download prompts and navigation elements.'
           }
         }),
         signal: controller.signal
@@ -207,7 +213,10 @@ serve(async (req) => {
         const errorText = await scrapeResponse.text();
         console.error('Firecrawl API error:', scrapeResponse.status, errorText);
         return new Response(
-          JSON.stringify({ error: 'Failed to scrape content', details: errorText }),
+          JSON.stringify({ 
+            error: 'Unable to extract recipe content from this URL', 
+            details: 'The social media platform may be blocking automated access or the content is not accessible.'
+          }),
           { 
             status: 502, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -221,7 +230,10 @@ serve(async (req) => {
       if (!scrapeData.success || !scrapeData.data?.content) {
         console.error('No content found in scrape response');
         return new Response(
-          JSON.stringify({ error: 'No content found at the provided URL' }),
+          JSON.stringify({ 
+            error: 'No recipe content found at this URL',
+            details: 'The URL may not contain a recipe, or the content is not accessible to our scraper.'
+          }),
           { 
             status: 404, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -229,10 +241,42 @@ serve(async (req) => {
         );
       }
 
-      // Extract recipe information with basic validation
-      const content = scrapeData.data.content.slice(0, 10000); // Limit content size
+      // Extract recipe information with better validation
+      const content = scrapeData.data.content.slice(0, 10000);
       console.log('Content extracted, length:', content.length);
+      console.log('Content preview:', content.substring(0, 300));
       
+      // Check if content indicates mobile redirect or app download page
+      const redirectIndicators = [
+        'download the app',
+        'open in app',
+        'get the app',
+        'app store',
+        'google play',
+        'better on the app',
+        'continue in app',
+        'install app'
+      ];
+      
+      const lowerContent = content.toLowerCase();
+      const hasRedirectContent = redirectIndicators.some(indicator => 
+        lowerContent.includes(indicator)
+      );
+      
+      if (hasRedirectContent && content.length < 500) {
+        console.error('Content appears to be app download redirect page');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Unable to access recipe content',
+            details: 'This URL redirects to an app download page. Social media platforms often block direct access to content. Try sharing a different URL or manually entering the recipe details.'
+          }),
+          { 
+            status: 422, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
       const recipe = {
         name: extractRecipeName(content),
         description: extractDescription(content),
@@ -245,13 +289,16 @@ serve(async (req) => {
         originalUrl: sanitizedUrl
       };
 
-      console.log('Recipe extracted:', { name: recipe.name, category: recipe.category });
+      console.log('Recipe extracted:', { name: recipe.name, category: recipe.category, hasInstructions: !!recipe.instructions });
 
-      // Validate extracted data
-      if (!recipe.name || recipe.name.length < 2) {
-        console.error('Could not extract valid recipe name');
+      // Validate that we extracted meaningful content
+      if (!recipe.name || recipe.name.length < 3 || recipe.name.toLowerCase().includes('download') || recipe.name.toLowerCase().includes('app')) {
+        console.error('Could not extract valid recipe name from content');
         return new Response(
-          JSON.stringify({ error: 'Could not extract valid recipe name from the content' }),
+          JSON.stringify({ 
+            error: 'No valid recipe found in the content',
+            details: 'The URL does not appear to contain a recognizable recipe. Please try a different URL or manually enter the recipe details.'
+          }),
           { 
             status: 422, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -273,7 +320,10 @@ serve(async (req) => {
       if (error.name === 'AbortError') {
         console.error('Request timeout');
         return new Response(
-          JSON.stringify({ error: 'Request timeout - the website took too long to respond' }),
+          JSON.stringify({ 
+            error: 'Request timeout',
+            details: 'The website took too long to respond. Please try again or use a different URL.'
+          }),
           { 
             status: 408, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -283,7 +333,10 @@ serve(async (req) => {
       
       console.error('Scraping error:', error);
       return new Response(
-        JSON.stringify({ error: 'Failed to scrape website', details: error.message }),
+        JSON.stringify({ 
+          error: 'Failed to extract recipe',
+          details: 'Unable to access the content at this URL. The social media platform may be blocking automated access.'
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -294,7 +347,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        details: 'An unexpected error occurred while processing your request.'
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -303,45 +359,46 @@ serve(async (req) => {
   }
 });
 
-// Helper functions for content extraction with validation
+// Helper functions for content extraction with better validation
 function extractRecipeName(content: string): string {
+  // Look for recipe-like patterns
   const patterns = [
-    /recipe[:\s]*([^.\n]+)/i,
-    /drink[:\s]*([^.\n]+)/i,
-    /how to make[:\s]*([^.\n]+)/i,
-    /🍫🍓\s*([^🍓\n]+)/i,
-    /([^·\n]+)\s*recipe/i
+    /recipe[:\s]*([^.\n!?]{3,50})/i,
+    /drink[:\s]*([^.\n!?]{3,50})/i,
+    /how to make[:\s]*([^.\n!?]{3,50})/i,
+    /^([^.\n!?]{5,50})\s*recipe/i,
+    /🍫🍓\s*([^🍓\n]{3,50})/i,
+    /\b([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*(?:recipe|drink|frappe|latte|coffee)/i
   ];
   
   for (const pattern of patterns) {
     const match = content.match(pattern);
     if (match && match[1]) {
       const name = sanitizeInput(match[1].trim());
-      if (name.length > 2) {
+      // Validate it's not app-related content
+      if (name.length > 3 && !name.toLowerCase().includes('app') && !name.toLowerCase().includes('download')) {
         return name;
       }
     }
   }
   
-  // Fallback: look for title-like content
-  const lines = content.split('\n').filter(line => line.trim().length > 0);
-  if (lines.length > 0) {
-    const firstLine = sanitizeInput(lines[0].substring(0, 100));
-    if (firstLine.length > 2) {
-      return firstLine;
-    }
-  }
-  
-  return 'Viral Social Media Recipe';
+  return '';
 }
 
 function extractDescription(content: string): string {
-  const sentences = content.split(/[.!?]/).slice(0, 3).filter(s => s.trim().length > 0);
+  // Look for meaningful sentences, avoiding app download text
+  const sentences = content.split(/[.!?]/)
+    .filter(s => s.trim().length > 10)
+    .filter(s => {
+      const lower = s.toLowerCase();
+      return !lower.includes('app') && !lower.includes('download') && !lower.includes('install');
+    })
+    .slice(0, 2);
+  
   return sanitizeInput(sentences.join('. '));
 }
 
 function extractCategory(content: string): string {
-  // Updated categories to match the app's categories
   const categories = [
     'Pretty n Pink',
     'Mad Matchas', 
@@ -379,34 +436,34 @@ function extractCategory(content: string): string {
     return 'Budget Babe Brews';
   }
   
-  return 'Pretty n Pink'; // Default category
+  return 'Pretty n Pink';
 }
 
 function extractInstructions(content: string): string {
   const instructionPatterns = [
-    /instructions?[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
-    /how to[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
-    /steps?[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
-    /recipe[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i
+    /(?:instructions?|how to|steps?|recipe)[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
+    /(?:order|ask for|get)[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i
   ];
   
   for (const pattern of instructionPatterns) {
     const match = content.match(pattern);
-    if (match && match[1]) {
-      return sanitizeInput(match[1]);
+    if (match && match[1] && match[1].length > 20) {
+      const instructions = match[1].trim();
+      // Avoid app-related instructions
+      if (!instructions.toLowerCase().includes('download') && !instructions.toLowerCase().includes('app')) {
+        return sanitizeInput(instructions);
+      }
     }
   }
   
-  // Fallback: use first few sentences as instructions
-  const sentences = content.split(/[.!?]/).slice(0, 5).filter(s => s.trim().length > 10);
-  return sanitizeInput(sentences.join('. '));
+  return '';
 }
 
 function extractTags(content: string): string[] {
   const commonTags = ['viral', 'tiktok', 'instagram', 'lemon8', 'popular', 'trending', 'sweet', 'iced', 'hot', 'frappuccino', 'latte', 'pink', 'fruity', 'budget', 'cheap'];
   const lowerContent = content.toLowerCase();
   
-  return commonTags.filter(tag => lowerContent.includes(tag)).slice(0, 5);
+  return commonTags.filter(tag => lowerContent.includes(tag)).slice(0, 3);
 }
 
 function getDomainFromUrl(url: string): string {
