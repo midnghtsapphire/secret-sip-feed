@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     defaultValues: {
       name: initialData?.name || '',
       description: initialData?.description || '',
-      category: initialData?.category || 'Pink Drinks',
+      category: initialData?.category || 'Pretty n Pink',
       image_url: initialData?.image_url || '',
       images: initialData?.image_url ? [initialData.image_url] : [],
       base_price: initialData?.base_price || 0,
@@ -40,12 +39,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   });
 
   const categories = [
-    'Pink Drinks',
-    'Blue Drinks', 
-    'Green Teas',
-    'Foam Experts',
-    'Budget Babe Brews',
-    'Viral Today'
+    'Pretty n Pink',
+    'Mad Matchas', 
+    'Blues Clues',
+    'Foam Frenzy',
+    'MochaMagic'
   ];
 
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
