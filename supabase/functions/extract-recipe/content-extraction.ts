@@ -1,6 +1,6 @@
 
 // Main content extraction module
-export { ExtractedRecipe } from './types.ts';
+export { type ExtractedRecipe } from './types.ts';
 export { extractRecipeName } from './recipe-name-extractor.ts';
 export { extractDescription } from './recipe-description-extractor.ts';
 export { extractCategory } from './recipe-category-extractor.ts';
