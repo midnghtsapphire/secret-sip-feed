@@ -7,6 +7,7 @@ interface DrinkCardProps {
   id: string;
   name: string;
   imageUrl: string;
+  images?: string[];
   category: string;
   tags: string[];
   saves: number;
@@ -19,6 +20,7 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
   id,
   name,
   imageUrl,
+  images,
   category,
   tags,
   saves,
@@ -28,6 +30,11 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
 }) => {
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const isInFavorites = isFavorite(id);
+
+  // Use the first image from images array, fallback to imageUrl, then to placeholder
+  const displayImage = images && images.length > 0 
+    ? images[0] 
+    : imageUrl || '/placeholder.svg';
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -39,7 +46,7 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
       addFavorite({
         id,
         name,
-        imageUrl,
+        imageUrl: displayImage,
         category,
       });
     }
@@ -49,11 +56,14 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
     <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 h-fit">
       <div className="relative">
         <img 
-          src={imageUrl} 
+          src={displayImage} 
           alt={`${name} - ${category} Starbucks recipe drink with ${tags.slice(0, 2).join(' and ')} ingredients`}
           className="w-full h-32 object-cover"
           loading="lazy"
           title={`${name} - ${description}`}
+          onError={(e) => {
+            e.currentTarget.src = '/placeholder.svg';
+          }}
         />
         {isTrending && (
           <div className="absolute top-2 left-2 bg-gradient-to-r from-orange-400 to-red-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center">

@@ -4,85 +4,17 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import ImageUpload from './ImageUpload';
+import { UseFormReturn } from 'react-hook-form';
 
 interface RecipeFormFieldsProps {
-  form: any;
+  form: UseFormReturn<any>;
   categories: string[];
   isAdmin: boolean;
 }
 
 const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, isAdmin }) => {
-  if (!isAdmin) {
-    return (
-      <>
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Recipe Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Pink Paradise Latte" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Describe your amazing recipe..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="images"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Recipe Images</FormLabel>
-              <FormControl>
-                <ImageUpload
-                  images={field.value || []}
-                  onImagesChange={field.onChange}
-                  maxImages={3}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="instructions"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Complete Recipe (Ingredients & Instructions)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Full recipe with ingredients and preparation steps..." 
-                  className="min-h-[300px]"
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </>
-    );
-  }
-
   return (
     <>
       <FormField
@@ -90,9 +22,9 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
         name="name"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Recipe Name</FormLabel>
+            <FormLabel>Recipe Name *</FormLabel>
             <FormControl>
-              <Input placeholder="e.g., Pink Paradise Latte" {...field} />
+              <Input placeholder="Enter recipe name" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -106,53 +38,41 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
           <FormItem>
             <FormLabel>Description</FormLabel>
             <FormControl>
-              <Textarea placeholder="Describe your amazing recipe..." {...field} />
+              <Textarea 
+                placeholder="Describe your recipe..."
+                className="min-h-[80px]"
+                {...field}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="base_price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Base Price ($)</FormLabel>
+      <FormField
+        control={form.control}
+        name="category"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Category *</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
-                <Input type="number" step="0.01" min="0" {...field} />
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       <FormField
         control={form.control}
@@ -177,12 +97,12 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
         name="instructions"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Instructions & Recipe Details</FormLabel>
+            <FormLabel>Instructions</FormLabel>
             <FormControl>
               <Textarea 
-                placeholder="Full recipe instructions including ingredients and preparation steps..." 
-                className="min-h-[200px]"
-                {...field} 
+                placeholder="Step-by-step instructions..."
+                className="min-h-[120px]"
+                {...field}
               />
             </FormControl>
             <FormMessage />
@@ -190,61 +110,111 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
         )}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormField
-          control={form.control}
-          name="difficulty_level"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Difficulty (1-5)</FormLabel>
-              <FormControl>
-                <Input type="number" min="1" max="5" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      {isAdmin && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="base_price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Base Price ($)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      placeholder="5.50"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={form.control}
-          name="prep_time_minutes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Prep Time (minutes)</FormLabel>
-              <FormControl>
-                <Input type="number" min="1" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+            <FormField
+              control={form.control}
+              name="prep_time_minutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prep Time (minutes)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number"
+                      placeholder="10"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="difficulty_level"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Difficulty Level (1-5)</FormLabel>
+                <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select difficulty" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <SelectItem key={level} value={level.toString()}>
+                        {level} - {level === 1 ? 'Very Easy' : level === 2 ? 'Easy' : level === 3 ? 'Medium' : level === 4 ? 'Hard' : 'Expert'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      )}
 
       <FormField
         control={form.control}
         name="tags"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Tags (comma separated)</FormLabel>
+            <FormLabel>Tags</FormLabel>
             <FormControl>
-              <Input placeholder="viral, trendy, budget-friendly" {...field} />
+              <Input 
+                placeholder="iced, caramel, foam (comma-separated)"
+                {...field}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
 
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="is_public"
-          {...form.register('is_public')}
-          className="rounded"
-        />
-        <label htmlFor="is_public" className="text-sm font-medium">
-          Make this recipe public (recommended - share with the community!)
-        </label>
-      </div>
+      <FormField
+        control={form.control}
+        name="is_public"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <FormLabel className="text-base">Public Recipe</FormLabel>
+              <div className="text-sm text-muted-foreground">
+                Make this recipe visible to all users
+              </div>
+            </div>
+            <FormControl>
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            </FormControl>
+          </FormItem>
+        )}
+      />
     </>
   );
 };
