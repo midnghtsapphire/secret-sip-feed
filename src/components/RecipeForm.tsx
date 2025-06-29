@@ -154,45 +154,55 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
         onCancel={onCancel}
       />
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          <SocialImportSection 
-            showSocialExtractor={showSocialExtractor}
-            onToggleExtractor={setShowSocialExtractor}
-            onRecipeExtracted={handleRecipeExtracted}
-          />
+      {/* Social Import Section - Always visible at the top */}
+      <div className="mb-8">
+        <SocialImportSection 
+          showSocialExtractor={showSocialExtractor}
+          onToggleExtractor={setShowSocialExtractor}
+          onRecipeExtracted={handleRecipeExtracted}
+        />
+      </div>
 
-          <RecipeFormFields 
-            form={form} 
-            categories={[]}
-            isAdmin={isAdmin}
-          />
+      {/* Manual Entry Form - Only show when not using social extractor */}
+      {!showSocialExtractor && (
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Or Enter Recipe Details Manually</h3>
           
-          <ImageUpload
-            images={images}
-            onImagesChange={setImages}
-            maxImages={5}
-          />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+              <RecipeFormFields 
+                form={form} 
+                categories={[]}
+                isAdmin={isAdmin}
+              />
+              
+              <ImageUpload
+                images={images}
+                onImagesChange={setImages}
+                maxImages={5}
+              />
 
-          <div className="flex gap-4 pt-6">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
-            >
-              {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
-            </Button>
-          </div>
-        </form>
-      </Form>
+              <div className="flex gap-4 pt-6">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={onCancel}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                >
+                  {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      )}
     </div>
   );
 };
