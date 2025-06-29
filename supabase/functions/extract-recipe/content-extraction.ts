@@ -74,7 +74,7 @@ export function extractDescription(content: string): string {
 export function extractCategory(content: string): string {
   const lowerContent = content.toLowerCase();
   
-  // Check for specific drink categories based on keywords
+  // Check for specific drink categories based on keywords - ensure they match database enum
   if (lowerContent.includes('pink') || lowerContent.includes('strawberry') || lowerContent.includes('berry') || lowerContent.includes('rose')) {
     return 'Pretty n Pink';
   }
