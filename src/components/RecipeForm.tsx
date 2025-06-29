@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
-import { X, Link as LinkIcon } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import SocialMediaExtractor from './SocialMediaExtractor';
 import RecipeFormHeader from './recipe-form/RecipeFormHeader';
@@ -29,7 +28,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       description: initialData?.description || '',
       category: initialData?.category || 'Pink Drinks',
       image_url: initialData?.image_url || '',
-      images: initialData?.image_url ? [initialData.image_url] : [],
+      images: initialData?.images || [],
       base_price: initialData?.base_price || 0,
       instructions: initialData?.instructions || '',
       difficulty_level: initialData?.difficulty_level || 1,
@@ -71,18 +70,15 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       form.setValue('category', validCategory);
     }
     
-    // Handle multiple images
-    const images = []
-    if (extractedRecipe.images && Array.isArray(extractedRecipe.images)) {
-      images.push(...extractedRecipe.images.filter(img => img && typeof img === 'string' && img !== '/placeholder.svg'))
-    } else if (extractedRecipe.imageUrl && extractedRecipe.imageUrl !== '/placeholder.svg') {
-      images.push(extractedRecipe.imageUrl)
-    }
-    
+    // Handle multiple images properly
+    const images = extractedRecipe.images || [];
     if (images.length > 0) {
       console.log('Setting recipe images:', images.length);
-      form.setValue('images', images)
-      form.setValue('image_url', images[0]) // Primary image
+      form.setValue('images', images);
+      form.setValue('image_url', images[0]); // Primary image
+    } else if (extractedRecipe.imageUrl && extractedRecipe.imageUrl !== '/placeholder.svg') {
+      form.setValue('images', [extractedRecipe.imageUrl]);
+      form.setValue('image_url', extractedRecipe.imageUrl);
     }
     
     if (extractedRecipe.instructions) {
@@ -115,8 +111,10 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     
     const recipeData = {
       ...data,
-      // Use the first image as primary, handle the images array separately if needed
-      image_url: data.images && data.images.length > 0 ? data.images[0] : data.image_url,
+      // Ensure images is properly formatted as an array
+      images: Array.isArray(data.images) ? data.images : [],
+      // Use the first image as primary
+      image_url: Array.isArray(data.images) && data.images.length > 0 ? data.images[0] : data.image_url,
       tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()).filter(tag => tag.length > 0) : [],
       base_price: parseFloat(data.base_price) || 0,
     };

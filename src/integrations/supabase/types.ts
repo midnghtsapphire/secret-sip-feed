@@ -123,6 +123,7 @@ export type Database = {
           difficulty_level: number | null
           id: string
           image_url: string | null
+          images: string[] | null
           instructions: string | null
           is_public: boolean | null
           name: string
@@ -140,6 +141,7 @@ export type Database = {
           difficulty_level?: number | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           instructions?: string | null
           is_public?: boolean | null
           name: string
@@ -157,6 +159,7 @@ export type Database = {
           difficulty_level?: number | null
           id?: string
           image_url?: string | null
+          images?: string[] | null
           instructions?: string | null
           is_public?: boolean | null
           name?: string

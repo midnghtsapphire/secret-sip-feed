@@ -24,7 +24,10 @@ const ImportRecipes = () => {
         name: extractedRecipe.name,
         description: extractedRecipe.description,
         category: extractedRecipe.category,
-        image_url: extractedRecipe.imageUrl !== '/placeholder.svg' ? extractedRecipe.imageUrl : '',
+        images: extractedRecipe.images || [],
+        image_url: extractedRecipe.images && extractedRecipe.images.length > 0 
+          ? extractedRecipe.images[0] 
+          : (extractedRecipe.imageUrl !== '/placeholder.svg' ? extractedRecipe.imageUrl : ''),
         instructions: extractedRecipe.instructions || '',
         base_price: 5.50,
         difficulty_level: 2,

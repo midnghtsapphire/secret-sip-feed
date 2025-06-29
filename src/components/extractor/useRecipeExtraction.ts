@@ -126,7 +126,22 @@ export const useRecipeExtraction = () => {
 
       if (data?.name) {
         console.log('✅ EXTRACT: Recipe extracted successfully:', data.name);
-        setExtractedRecipe(data);
+        
+        // Ensure images array is properly formatted
+        const images = [];
+        if (data.images && Array.isArray(data.images)) {
+          images.push(...data.images.filter(img => img && typeof img === 'string' && img !== '/placeholder.svg'));
+        } else if (data.imageUrl && data.imageUrl !== '/placeholder.svg') {
+          images.push(data.imageUrl);
+        }
+        
+        const enrichedData = {
+          ...data,
+          images,
+          imageUrl: images.length > 0 ? images[0] : '/placeholder.svg'
+        };
+        
+        setExtractedRecipe(enrichedData);
         toast({
           title: "Recipe Extracted! 🎉",
           description: `Successfully extracted "${data.name}" from ${data.source}`,
