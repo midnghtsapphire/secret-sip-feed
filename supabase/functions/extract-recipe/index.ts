@@ -133,8 +133,30 @@ serve(async (req) => {
       }
 
       // Extract recipe data with comments support
-      const recipeName = extractRecipeName(content, comments);
+      let recipeName = extractRecipeName(content, comments);
       console.log('🏷️ Extracted recipe name:', recipeName);
+      
+      // Special handling for YouTube URLs - improve name extraction
+      if ((sanitizedUrl.includes('youtube.com') || sanitizedUrl.includes('youtu.be')) && recipeName.length < 10) {
+        // Try to extract from metadata title
+        if (firstResult.metadata && firstResult.metadata.title) {
+          const title = firstResult.metadata.title;
+          console.log('📺 YouTube title:', title);
+          
+          // Clean up YouTube title for recipe name
+          if (title.toLowerCase().includes('starbucks') || title.toLowerCase().includes('drink') || title.toLowerCase().includes('recipe')) {
+            recipeName = title.replace(/^\d+\s*/, '').trim(); // Remove leading numbers
+            if (recipeName.length > 50) {
+              recipeName = recipeName.substring(0, 50) + '...'; // Truncate if too long
+            }
+          }
+        }
+        
+        // Final fallback for YouTube
+        if (recipeName.length < 5) {
+          recipeName = 'YouTube Starbucks Recipe';
+        }
+      }
       
       const recipe = {
         name: recipeName,

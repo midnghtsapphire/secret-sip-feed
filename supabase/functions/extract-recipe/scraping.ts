@@ -1,4 +1,3 @@
-
 // Apify integration utilities
 export interface ApifyRunOptions {
   timeout: number;
@@ -144,11 +143,56 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
   }
 }
 
+// Helper function to extract YouTube video ID from URL
+function extractYouTubeVideoId(url: string): string | null {
+  console.log('Extracting YouTube video ID from:', url);
+  
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
+    /youtube\.com\/v\/([^&\n?#]+)/,
+    /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      console.log('Found YouTube video ID:', match[1]);
+      return match[1];
+    }
+  }
+  
+  console.log('No YouTube video ID found');
+  return null;
+}
+
 export function extractContentFromApifyResult(result: any, url: string): string {
   console.log('Extracting content from result for URL:', url);
   console.log('Result keys:', Object.keys(result));
   
-  // Handle different result structures
+  // Special handling for YouTube URLs - extract from metadata and text
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    let content = '';
+    
+    // Try to get title from metadata
+    if (result.metadata && result.metadata.title) {
+      content += `Title: ${result.metadata.title}\n`;
+    }
+    
+    // Try to get description from metadata
+    if (result.metadata && result.metadata.description) {
+      content += `Description: ${result.metadata.description}\n`;
+    }
+    
+    // Add text content
+    if (result.text) {
+      content += result.text;
+    }
+    
+    console.log('YouTube content extracted:', content.substring(0, 300));
+    return content;
+  }
+  
+  // Handle different result structures for other platforms
   if (url.includes('instagram')) {
     return result.caption || result.text || result.description || result.content || '';
   } else if (url.includes('tiktok') || url.includes('lemon8')) {
@@ -202,28 +246,6 @@ export function extractCommentsFromApifyResult(result: any, url: string): string
   
   console.log('Extracted comments count:', filteredComments.length);
   return filteredComments;
-}
-
-// Helper function to extract YouTube video ID from URL
-function extractYouTubeVideoId(url: string): string | null {
-  console.log('Extracting YouTube video ID from:', url);
-  
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
-    /youtube\.com\/v\/([^&\n?#]+)/,
-    /youtube\.com\/watch\?.*v=([^&\n?#]+)/
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      console.log('Found YouTube video ID:', match[1]);
-      return match[1];
-    }
-  }
-  
-  console.log('No YouTube video ID found');
-  return null;
 }
 
 export function extractImageFromApifyResult(result: any, url: string): string {
