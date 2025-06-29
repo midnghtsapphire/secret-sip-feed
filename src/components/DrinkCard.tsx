@@ -14,6 +14,7 @@ interface DrinkCardProps {
   isTrending?: boolean;
   description: string;
   price?: string;
+  onImageClick?: (imageUrl: string, recipeName: string, e: React.MouseEvent) => void;
 }
 
 const DrinkCard: React.FC<DrinkCardProps> = ({
@@ -27,6 +28,7 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
   isTrending,
   description,
   price,
+  onImageClick,
 }) => {
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const isInFavorites = isFavorite(id);
@@ -54,15 +56,22 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
     }
   };
 
+  const handleImageClick = (e: React.MouseEvent) => {
+    if (onImageClick) {
+      onImageClick(displayImage, name, e);
+    }
+  };
+
   return (
     <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 h-fit">
       <div className="relative">
         <img 
           src={displayImage} 
           alt={`${name} - ${category} Starbucks recipe drink with ${tags.slice(0, 2).join(' and ')} ingredients`}
-          className="w-full h-32 object-cover"
+          className="w-full h-32 object-cover cursor-pointer"
           loading="lazy"
-          title={`${name} - ${description}`}
+          title={`${name} - ${description} - Click to view larger image`}
+          onClick={handleImageClick}
           onError={(e) => {
             console.log('📱 MOBILE CARD: Image failed to load, using placeholder:', displayImage);
             e.currentTarget.src = '/placeholder.svg';
