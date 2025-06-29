@@ -31,6 +31,8 @@ export const useRecipeExtraction = () => {
 
   const handleExtract = async () => {
     console.log('🚀 EXTRACT: Starting extraction for URL:', url);
+    console.log('📱 MOBILE: User agent:', navigator.userAgent);
+    console.log('📱 MOBILE: Screen size:', window.innerWidth, 'x', window.innerHeight);
     
     if (!url.trim()) {
       console.log('❌ EXTRACT: No URL provided');
@@ -140,6 +142,11 @@ export const useRecipeExtraction = () => {
           data.images.forEach(img => {
             if (img && typeof img === 'string' && img.trim() !== '' && img !== '/placeholder.svg') {
               console.log('📷 EXTRACT: Adding image from array:', img);
+              // Test image validity on mobile
+              const testImg = new Image();
+              testImg.onload = () => console.log('📱 MOBILE: Image loads successfully:', img);
+              testImg.onerror = () => console.log('📱 MOBILE: Image fails to load:', img);
+              testImg.src = img.trim();
               images.push(img.trim());
             }
           });
@@ -149,11 +156,17 @@ export const useRecipeExtraction = () => {
         if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' && data.imageUrl !== '/placeholder.svg') {
           if (!images.includes(data.imageUrl.trim())) {
             console.log('📷 EXTRACT: Adding main imageUrl:', data.imageUrl);
+            // Test image validity on mobile
+            const testImg = new Image();
+            testImg.onload = () => console.log('📱 MOBILE: Main image loads successfully:', data.imageUrl);
+            testImg.onerror = () => console.log('📱 MOBILE: Main image fails to load:', data.imageUrl);
+            testImg.src = data.imageUrl.trim();
             images.unshift(data.imageUrl.trim()); // Add to beginning as primary image
           }
         }
         
         console.log('🖼️ EXTRACT: Final processed images array:', images);
+        console.log('📱 MOBILE: Image array length:', images.length);
         
         const enrichedData = {
           ...data,
@@ -162,6 +175,7 @@ export const useRecipeExtraction = () => {
         };
         
         console.log('✨ EXTRACT: Final enriched data:', enrichedData);
+        console.log('📱 MOBILE: Final image URL for display:', enrichedData.imageUrl);
         
         setExtractedRecipe(enrichedData);
         toast({

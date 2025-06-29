@@ -36,6 +36,10 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
     ? images[0] 
     : imageUrl || '/placeholder.svg';
 
+  console.log('📱 MOBILE CARD: Recipe', name, 'display image:', displayImage);
+  console.log('📱 MOBILE CARD: Images array:', images);
+  console.log('📱 MOBILE CARD: ImageUrl prop:', imageUrl);
+
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -62,7 +66,11 @@ const DrinkCard: React.FC<DrinkCardProps> = ({
           loading="lazy"
           title={`${name} - ${description}`}
           onError={(e) => {
+            console.log('📱 MOBILE CARD: Image failed to load:', displayImage);
             e.currentTarget.src = '/placeholder.svg';
+          }}
+          onLoad={() => {
+            console.log('📱 MOBILE CARD: Image loaded successfully:', displayImage);
           }}
         />
         {isTrending && (
