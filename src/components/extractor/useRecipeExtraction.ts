@@ -31,7 +31,7 @@ const createProxiedImageUrl = async (originalUrl: string): Promise<string> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.supabaseKey}`,
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4eGZwY2x5cHR3bHphcmxpc25yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTA0NDYsImV4cCI6MjA2NTc2NjQ0Nn0.j7A6XzikWdWLhFjyDyN74HgqPBf00mHQrbdgSeoIMUQ`,
       },
       body: JSON.stringify({ imageUrl: originalUrl })
     });
