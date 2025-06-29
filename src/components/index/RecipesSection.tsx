@@ -3,6 +3,7 @@ import React from 'react';
 import RecipesHeader from './RecipesHeader';
 import EmptyRecipesState from './EmptyRecipesState';
 import RecipesGrid from './RecipesGrid';
+import ViralTodaySection from './ViralTodaySection';
 import type { Database } from '@/integrations/supabase/types';
 
 type Recipe = Database['public']['Tables']['recipes']['Row'];
@@ -18,12 +19,34 @@ const RecipesSection: React.FC<RecipesSectionProps> = ({
   isLoading,
   filteredRecipes
 }) => {
+  // Filter recipes created today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todaysRecipes = filteredRecipes.filter(recipe => {
+    const recipeDate = new Date(recipe.created_at || '');
+    recipeDate.setHours(0, 0, 0, 0);
+    return recipeDate.getTime() === today.getTime();
+  });
+
+  // Filter out today's recipes from the main list to avoid duplicates
+  const otherRecipes = filteredRecipes.filter(recipe => {
+    const recipeDate = new Date(recipe.created_at || '');
+    recipeDate.setHours(0, 0, 0, 0);
+    return recipeDate.getTime() !== today.getTime();
+  });
+
   return (
     <>
+      {/* Viral Today Section - only show if there are recipes from today */}
+      {!isLoading && activeCategory === 'All' && (
+        <ViralTodaySection todaysRecipes={todaysRecipes} />
+      )}
+      
       <RecipesHeader
         activeCategory={activeCategory}
         isLoading={isLoading}
-        recipesCount={filteredRecipes.length}
+        recipesCount={activeCategory === 'All' ? otherRecipes.length : filteredRecipes.length}
       />
       
       {/* Loading State */}
@@ -39,8 +62,8 @@ const RecipesSection: React.FC<RecipesSectionProps> = ({
       )}
       
       {/* Recipes Grid */}
-      {!isLoading && filteredRecipes.length > 0 && (
-        <RecipesGrid recipes={filteredRecipes} />
+      {!isLoading && (activeCategory === 'All' ? otherRecipes.length > 0 : filteredRecipes.length > 0) && (
+        <RecipesGrid recipes={activeCategory === 'All' ? otherRecipes : filteredRecipes} />
       )}
     </>
   );
