@@ -120,12 +120,14 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
       }
     };
   } else if (url.includes('lemon8') || url.includes('v.lemon8')) {
-    // Use TikTok scraper for Lemon8 as they're related platforms
+    // Use web scraper for Lemon8 since TikTok scraper only accepts tiktok.com URLs
     return {
-      actorId: 'OtzYfK1ndEGdwWFKQ', // TikTok Scraper
+      actorId: 'aYG0l9s7dbB7j3gbS', // Website Content Crawler
       runInput: {
-        postURLs: [url],
-        maxItems: 1
+        startUrls: [{ url }],
+        maxRequestRetries: 3,
+        maxPages: 1,
+        waitUntil: 'networkidle'
       }
     };
   } else {
