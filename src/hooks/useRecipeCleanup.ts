@@ -92,20 +92,20 @@ export const useRecipeCleanup = () => {
     const text = `${recipe.name} ${recipe.description || ''} ${recipe.tags?.join(' ') || ''}`.toLowerCase();
     
     // Category mapping based on keywords - using correct database enum values
-    if (text.includes('pink') || text.includes('strawberry') || text.includes('raspberry') || text.includes('dragon') || text.includes('foam')) {
-      return { id: recipe.id, category: 'Pretty n Pink' };
+    if (text.includes('pink') || text.includes('strawberry') || text.includes('raspberry') || text.includes('dragon')) {
+      return { id: recipe.id, category: 'Pink Drinks' };
     }
     
     if (text.includes('blue') || text.includes('butterfly') || text.includes('ocean') || text.includes('mermaid')) {
-      return { id: recipe.id, category: 'Blues Clues' };
+      return { id: recipe.id, category: 'Blue Drinks' };
     }
     
     if (text.includes('matcha') || text.includes('green tea') || text.includes('jade') || text.includes('mint')) {
-      return { id: recipe.id, category: 'Mad Matchas' };
+      return { id: recipe.id, category: 'Green Teas' };
     }
     
     if (text.includes('foam') || text.includes('cold foam') || text.includes('whipped') || text.includes('fluffy')) {
-      return { id: recipe.id, category: 'Foam Frenzy' };
+      return { id: recipe.id, category: 'Foam Experts' };
     }
     
     if (text.includes('caramel') || text.includes('butterscotch') || text.includes('toffee') || text.includes('dulce')) {
