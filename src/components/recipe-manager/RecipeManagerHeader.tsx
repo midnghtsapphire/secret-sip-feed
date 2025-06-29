@@ -12,7 +12,7 @@ const RecipeManagerHeader: React.FC<RecipeManagerHeaderProps> = ({ onAddRecipe }
     <div className="flex justify-between items-center mb-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-800">Recipe Manager</h1>
-        <p className="text-gray-600 mt-2">Create and manage your secret Starbucks recipes</p>
+        <p className="text-gray-600 mt-2">Create and manage your secret Starbucks recipes for Secret Sips Cafe</p>
       </div>
       <Button
         onClick={onAddRecipe}
