@@ -22,6 +22,33 @@ interface ExtractedRecipe {
   originalUrl: string;
 }
 
+// Helper function to create proxied image URL for mobile Instagram images
+const createProxiedImageUrl = async (originalUrl: string): Promise<string> => {
+  try {
+    console.log('🔄 PROXY: Creating proxied URL for:', originalUrl);
+    
+    const { data, error } = await supabase.functions.invoke('proxy-image', {
+      body: { imageUrl: originalUrl }
+    });
+
+    if (error) {
+      console.error('❌ PROXY: Error creating proxied URL:', error);
+      return originalUrl; // Fallback to original
+    }
+
+    // Create a blob URL from the response
+    const blob = new Blob([data], { type: 'image/jpeg' });
+    const blobUrl = URL.createObjectURL(blob);
+    
+    console.log('✅ PROXY: Created blob URL:', blobUrl);
+    return blobUrl;
+    
+  } catch (error) {
+    console.error('💥 PROXY: Failed to create proxied URL:', error);
+    return originalUrl; // Fallback to original
+  }
+};
+
 export const useRecipeExtraction = () => {
   const [url, setUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
@@ -133,44 +160,66 @@ export const useRecipeExtraction = () => {
           images: data.images
         });
         
-        // For mobile compatibility, we'll use placeholder for Instagram images that fail to load
-        // and let the backend handle image processing in the future
+        // Check if we need to proxy images for mobile Instagram
         const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isInstagram = urlToUse.includes('instagram.com');
         
         console.log('📱 MOBILE: Is mobile device:', isMobile);
         console.log('📱 MOBILE: Is Instagram source:', isInstagram);
         
-        // For Instagram on mobile, we'll use a placeholder and let the recipe work without images
-        // This prevents the extraction from failing due to CORS/loading issues
         let processedImages = [];
         let processedImageUrl = '/placeholder.svg';
         
-        if (isMobile && isInstagram) {
-          console.log('📱 MOBILE: Using placeholder for Instagram on mobile due to CORS restrictions');
-          processedImages = ['/placeholder.svg'];
-          processedImageUrl = '/placeholder.svg';
-        } else {
-          // Process images normally for non-mobile or non-Instagram
-          if (data.images && Array.isArray(data.images)) {
-            console.log('📷 EXTRACT: Processing images array:', data.images);
-            data.images.forEach(img => {
-              if (img && typeof img === 'string' && img.trim() !== '' && img !== '/placeholder.svg') {
-                console.log('📷 EXTRACT: Adding image from array:', img);
+        if (data.images && Array.isArray(data.images)) {
+          console.log('📷 EXTRACT: Processing images array:', data.images);
+          for (const img of data.images) {
+            if (img && typeof img === 'string' && img.trim() !== '' && img !== '/placeholder.svg') {
+              console.log('📷 EXTRACT: Processing image from array:', img);
+              
+              // If mobile Instagram, try to proxy the image
+              if (isMobile && isInstagram) {
+                try {
+                  const proxiedUrl = await createProxiedImageUrl(img.trim());
+                  processedImages.push(proxiedUrl);
+                  console.log('📱 MOBILE: Added proxied image:', proxiedUrl);
+                } catch (error) {
+                  console.error('❌ PROXY: Failed to proxy image, using original:', error);
+                  processedImages.push(img.trim());
+                }
+              } else {
                 processedImages.push(img.trim());
               }
-            });
-          }
-          
-          if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' && data.imageUrl !== '/placeholder.svg') {
-            if (!processedImages.includes(data.imageUrl.trim())) {
-              console.log('📷 EXTRACT: Adding main imageUrl:', data.imageUrl);
-              processedImages.unshift(data.imageUrl.trim());
             }
           }
-          
-          processedImageUrl = processedImages.length > 0 ? processedImages[0] : '/placeholder.svg';
         }
+        
+        if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' && data.imageUrl !== '/placeholder.svg') {
+          const mainImageUrl = data.imageUrl.trim();
+          
+          if (isMobile && isInstagram) {
+            try {
+              const proxiedMainUrl = await createProxiedImageUrl(mainImageUrl);
+              if (!processedImages.includes(proxiedMainUrl)) {
+                processedImages.unshift(proxiedMainUrl);
+              }
+              processedImageUrl = proxiedMainUrl;
+              console.log('📱 MOBILE: Added proxied main image:', proxiedMainUrl);
+            } catch (error) {
+              console.error('❌ PROXY: Failed to proxy main image, using original:', error);
+              if (!processedImages.includes(mainImageUrl)) {
+                processedImages.unshift(mainImageUrl);
+              }
+              processedImageUrl = mainImageUrl;
+            }
+          } else {
+            if (!processedImages.includes(mainImageUrl)) {
+              processedImages.unshift(mainImageUrl);
+            }
+            processedImageUrl = mainImageUrl;
+          }
+        }
+        
+        processedImageUrl = processedImages.length > 0 ? processedImages[0] : '/placeholder.svg';
         
         console.log('🖼️ EXTRACT: Final processed images array:', processedImages);
         console.log('📱 MOBILE: Image array length:', processedImages.length);
@@ -187,7 +236,7 @@ export const useRecipeExtraction = () => {
         setExtractedRecipe(enrichedData);
         toast({
           title: "Recipe Extracted! 🎉",
-          description: `Successfully extracted "${data.name}" from ${data.source}${isMobile && isInstagram ? ' (image will be added later)' : ''}`,
+          description: `Successfully extracted "${data.name}" from ${data.source}${isMobile && isInstagram ? ' (images processed for mobile)' : ''}`,
         });
       } else {
         console.error('❌ EXTRACT: No valid recipe data:', data);
