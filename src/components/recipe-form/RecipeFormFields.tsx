@@ -90,24 +90,6 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
 
       <FormField
         control={form.control}
-        name="images"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Recipe Images</FormLabel>
-            <FormControl>
-              <ImageUpload
-                images={field.value || []}
-                onImagesChange={field.onChange}
-                maxImages={5}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
         name="instructions"
         render={({ field }) => (
           <FormItem>
@@ -117,6 +99,42 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
                 placeholder="Step-by-step instructions..."
                 className="min-h-[120px]"
                 {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="tags"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Tags</FormLabel>
+            <FormControl>
+              <Input 
+                placeholder="iced, caramel, foam (comma-separated)"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Move image upload here - after basic info but before admin fields */}
+      <FormField
+        control={form.control}
+        name="images"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Recipe Images</FormLabel>
+            <FormControl>
+              <ImageUpload
+                images={field.value || []}
+                onImagesChange={field.onChange}
+                maxImages={5}
               />
             </FormControl>
             <FormMessage />
@@ -191,23 +209,6 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
           />
         </>
       )}
-
-      <FormField
-        control={form.control}
-        name="tags"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Tags</FormLabel>
-            <FormControl>
-              <Input 
-                placeholder="iced, caramel, foam (comma-separated)"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
 
       <FormField
         control={form.control}
