@@ -157,3 +157,31 @@ export function extractContentFromApifyResult(result: any, url: string): string 
     return result.text || result.content || result.description || result.title || '';
   }
 }
+
+export function extractImageFromApifyResult(result: any, url: string): string {
+  console.log('Extracting image from result for URL:', url);
+  
+  if (url.includes('tiktok')) {
+    // Try multiple TikTok image sources
+    const imageOptions = [
+      result.videoMeta?.coverUrl,
+      result.videoMeta?.dynamicCover,
+      result.authorMeta?.avatar,
+      result.mediaUrls?.[0],
+      result.displayUrl,
+      result.imageUrl
+    ];
+    
+    for (const imageUrl of imageOptions) {
+      if (imageUrl && typeof imageUrl === 'string' && imageUrl !== '/placeholder.svg') {
+        console.log('Found TikTok image:', imageUrl);
+        return imageUrl;
+      }
+    }
+  } else if (url.includes('instagram')) {
+    return result.displayUrl || result.imageUrl || result.images?.[0] || '/placeholder.svg';
+  }
+  
+  // Fallback for other platforms
+  return result.displayUrl || result.imageUrl || result.images?.[0] || '/placeholder.svg';
+}

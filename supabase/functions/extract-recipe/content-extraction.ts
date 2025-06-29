@@ -51,23 +51,35 @@ export function extractRecipeName(content: string): string {
 }
 
 export function extractDescription(content: string): string {
-  // Clean up content and get meaningful sentences
-  const sentences = content
-    .replace(/[#@]/g, '')
+  // Get the full content without truncating too early
+  const fullText = content.replace(/[#@]/g, '').trim();
+  
+  // Split into sentences and clean them
+  const sentences = fullText
     .split(/[.!?]/)
     .map(s => s.trim())
-    .filter(s => s.length > 15)
+    .filter(s => s.length > 10)
     .filter(s => {
       const lower = s.toLowerCase();
       return !lower.includes('app') && 
              !lower.includes('download') && 
              !lower.includes('install') &&
              !lower.includes('follow') &&
-             !lower.includes('like');
-    })
-    .slice(0, 3);
+             !lower.includes('like') &&
+             !lower.includes('comment');
+    });
   
-  return sentences.join('. ').trim().slice(0, 300) || 'Delicious Starbucks secret menu drink recipe!';
+  // Take more sentences for a fuller description
+  const description = sentences.slice(0, 5).join('. ').trim();
+  
+  // If we have a good description, return it, otherwise return the first part of full text
+  if (description.length > 50) {
+    return description.slice(0, 500);
+  }
+  
+  // Fallback to first meaningful chunk of text
+  const fallback = fullText.slice(0, 300).replace(/\n+/g, ' ').trim();
+  return fallback || 'Delicious Starbucks secret menu drink recipe!';
 }
 
 export function extractCategory(content: string): string {
@@ -101,6 +113,12 @@ export function extractCategory(content: string): string {
 }
 
 export function extractInstructions(content: string): string {
+  // Look for the FULL ORDER section specifically
+  const fullOrderMatch = content.match(/FULL ORDER[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i);
+  if (fullOrderMatch && fullOrderMatch[1] && fullOrderMatch[1].length > 20) {
+    return fullOrderMatch[1].trim().slice(0, 1000); // Allow longer instructions
+  }
+  
   const instructionPatterns = [
     /(?:instructions?|how to|steps?|recipe|order)[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
     /(?:ask for|get|order)[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i,
@@ -112,22 +130,23 @@ export function extractInstructions(content: string): string {
     if (match && match[1] && match[1].length > 20) {
       const instructions = match[1].trim();
       if (!instructions.toLowerCase().includes('download') && !instructions.toLowerCase().includes('app')) {
-        return instructions.slice(0, 500);
+        return instructions.slice(0, 1000); // Allow longer instructions
       }
     }
   }
   
-  // Fallback: extract lines that look like instructions
+  // Fallback: extract lines that look like instructions, but keep more content
   const lines = content.split('\n')
-    .filter(line => line.trim().length > 10)
+    .filter(line => line.trim().length > 5)
     .filter(line => {
       const lower = line.toLowerCase();
       return !lower.includes('app') && 
              !lower.includes('download') &&
              !lower.includes('follow') &&
-             !lower.includes('like');
+             !lower.includes('like') &&
+             !lower.includes('comment');
     })
-    .slice(0, 5);
+    .slice(0, 10); // Keep more lines
   
   return lines.join('\n') || 'Ask your barista to make this special drink!';
 }

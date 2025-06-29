@@ -5,7 +5,7 @@ import { isValidUrl, isDomainAllowed, sanitizeInput, validateRequest, defaultCon
 import { extractRecipeName, extractDescription, extractCategory, extractInstructions, extractTags, getDomainFromUrl } from './content-extraction.ts';
 import { isAppRedirectContent, isValidRecipeName } from './content-validation.ts';
 import { corsHeaders, createErrorResponse, createSuccessResponse, handleOptionsRequest } from './http-utils.ts';
-import { runApifyActor, getActorIdForPlatform, extractContentFromApifyResult, defaultApifyOptions } from './scraping.ts';
+import { runApifyActor, getActorIdForPlatform, extractContentFromApifyResult, extractImageFromApifyResult, defaultApifyOptions } from './scraping.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -104,6 +104,10 @@ serve(async (req) => {
       console.log('📝 Extracted content length:', content.length);
       console.log('📖 Content preview:', content.substring(0, 300));
       
+      // Extract image using improved method
+      const extractedImage = extractImageFromApifyResult(firstResult, sanitizedUrl);
+      console.log('🖼️ Extracted image:', extractedImage);
+      
       // Check for app redirect content
       if (isAppRedirectContent(content)) {
         console.error('❌ Content is app redirect page');
@@ -134,8 +138,8 @@ serve(async (req) => {
         category: extractCategory(content),
         instructions: extractInstructions(content),
         tags: extractTags(content),
-        imageUrl: firstResult.displayUrl || firstResult.imageUrl || firstResult.images?.[0] || '/placeholder.svg',
-        images: firstResult.images || (firstResult.imageUrl ? [firstResult.imageUrl] : []),
+        imageUrl: extractedImage,
+        images: extractedImage !== '/placeholder.svg' ? [extractedImage] : [],
         source: getDomainFromUrl(sanitizedUrl),
         originalUrl: sanitizedUrl
       };
@@ -146,7 +150,8 @@ serve(async (req) => {
         category: recipe.category,
         hasInstructions: !!recipe.instructions,
         tagCount: recipe.tags.length,
-        imageCount: recipe.images.length
+        imageCount: recipe.images.length,
+        hasImage: recipe.imageUrl !== '/placeholder.svg'
       });
 
       // More lenient validation - accept any meaningful name
