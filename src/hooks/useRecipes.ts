@@ -24,6 +24,13 @@ export const useRecipes = () => {
         throw error;
       }
       
+      console.log('Fetched recipes with images:', data.map(r => ({ 
+        id: r.id, 
+        name: r.name, 
+        images: r.images, 
+        image_url: r.image_url 
+      })));
+      
       return data as Recipe[];
     },
   });
@@ -32,6 +39,8 @@ export const useRecipes = () => {
     mutationFn: async (recipe: Omit<RecipeInsert, 'user_id'>) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Must be logged in');
+
+      console.log('Creating recipe with data:', recipe);
 
       const { data, error } = await supabase
         .from('recipes')

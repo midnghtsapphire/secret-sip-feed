@@ -58,6 +58,11 @@ const DrinkDetail = () => {
 
   const isInFavorites = isFavorite(recipe.id);
 
+  // Use the first image from images array, fallback to image_url, then to placeholder
+  const displayImage = recipe.images && recipe.images.length > 0 
+    ? recipe.images[0] 
+    : recipe.image_url || '/placeholder.svg';
+
   const handleFavoriteClick = () => {
     if (isInFavorites) {
       removeFavorite(recipe.id);
@@ -65,7 +70,7 @@ const DrinkDetail = () => {
       addFavorite({
         id: recipe.id,
         name: recipe.name,
-        imageUrl: recipe.image_url || '/placeholder.svg',
+        imageUrl: displayImage,
         category: recipe.category,
       });
     }
@@ -78,7 +83,7 @@ const DrinkDetail = () => {
     "@context": "https://schema.org/",
     "@type": "Recipe",
     "name": recipe.name,
-    "image": recipe.image_url,
+    "image": displayImage,
     "description": recipe.description,
     "recipeInstructions": instructionLines.map((instruction, index) => ({
       "@type": "HowToStep",
@@ -95,7 +100,7 @@ const DrinkDetail = () => {
       <SEOHead
         title={`${recipe.name} Recipe - Secret Sips`}
         description={`Learn how to make ${recipe.name} - ${recipe.description}. Complete recipe with ingredients and step-by-step instructions.`}
-        image={recipe.image_url}
+        image={displayImage}
         url={`https://secret-sips.lovable.app/drink/${recipe.id}`}
         type="article"
         structuredData={structuredData}
@@ -111,10 +116,13 @@ const DrinkDetail = () => {
           <div className="md:flex">
             <div className="md:w-1/2">
               <img
-                src={recipe.image_url || '/placeholder.svg'}
+                src={displayImage}
                 alt={`${recipe.name} - ${recipe.category} recipe`}
                 className="w-full h-64 md:h-full object-cover"
                 title={`${recipe.name} - Complete recipe and ingredients`}
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder.svg';
+                }}
               />
             </div>
             
