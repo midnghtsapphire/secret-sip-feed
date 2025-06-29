@@ -1,163 +1,173 @@
 
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
-import { useAdmin } from '@/hooks/useAdmin';
-import SocialMediaExtractor from './SocialMediaExtractor';
+import { useToast } from '@/hooks/use-toast';
 import RecipeFormHeader from './recipe-form/RecipeFormHeader';
 import RecipeFormFields from './recipe-form/RecipeFormFields';
+import ImageUpload from './recipe-form/ImageUpload';
 import SocialImportSection from './recipe-form/SocialImportSection';
-import type { Database } from '@/integrations/supabase/types';
+import { 
+  sanitizeInput, 
+  validateRecipeName, 
+  validateRecipeDescription, 
+  validateRecipeInstructions,
+  validateRecipeTags 
+} from '@/utils/inputValidation';
 
-type RecipeInsert = Database['public']['Tables']['recipes']['Insert'];
+// Enhanced form schema with security validation
+const formSchema = z.object({
+  name: z.string()
+    .min(2, 'Recipe name must be at least 2 characters')
+    .max(100, 'Recipe name must be less than 100 characters')
+    .refine((val) => validateRecipeName(val).isValid, {
+      message: 'Recipe name contains invalid characters'
+    }),
+  description: z.string()
+    .max(1000, 'Description must be less than 1000 characters')
+    .refine((val) => validateRecipeDescription(val).isValid, {
+      message: 'Description contains invalid content'
+    }),
+  category: z.string().min(1, 'Please select a category'),
+  basePrice: z.number().min(0, 'Price must be positive').max(50, 'Price seems too high'),
+  prepTimeMinutes: z.number().min(1, 'Prep time must be at least 1 minute').max(480, 'Prep time seems too long'),
+  difficultyLevel: z.number().min(1).max(5),
+  instructions: z.string()
+    .max(2000, 'Instructions must be less than 2000 characters')
+    .refine((val) => validateRecipeInstructions(val).isValid, {
+      message: 'Instructions contain invalid content'
+    }),
+  tags: z.array(z.string())
+    .max(10, 'Maximum 10 tags allowed')
+    .refine((val) => validateRecipeTags(val).isValid, {
+      message: 'Tags contain invalid characters'
+    }),
+  isPublic: z.boolean().default(false),
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 interface RecipeFormProps {
-  onSubmit: (data: Omit<RecipeInsert, 'user_id'>) => void;
+  onSubmit: (data: any) => void;
   onCancel: () => void;
-  initialData?: Partial<RecipeInsert>;
+  initialData?: any;
 }
 
 const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData }) => {
-  const [showSocialExtractor, setShowSocialExtractor] = useState(!initialData);
-  const { isAdmin } = useAdmin();
+  const [images, setImages] = useState<string[]>(initialData?.images || []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const form = useForm({
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || '',
       description: initialData?.description || '',
-      category: initialData?.category || 'Pink Drinks',
-      image_url: initialData?.image_url || '',
-      images: initialData?.images || [],
-      base_price: initialData?.base_price || 0,
+      category: initialData?.category || '',
+      basePrice: initialData?.base_price || 0,
+      prepTimeMinutes: initialData?.prep_time_minutes || 5,
+      difficultyLevel: initialData?.difficulty_level || 1,
       instructions: initialData?.instructions || '',
-      difficulty_level: initialData?.difficulty_level || 1,
-      prep_time_minutes: initialData?.prep_time_minutes || 5,
-      tags: initialData?.tags?.join(', ') || '',
-      is_public: initialData?.is_public !== undefined ? initialData.is_public : true,
+      tags: initialData?.tags || [],
+      isPublic: initialData?.is_public || false,
     },
   });
 
-  const categories = [
-    'Pink Drinks',
-    'Blue Drinks', 
-    'Green Teas',
-    'Foam Experts',
-    'Budget Babe Brews',
-    'Viral Today'
-  ];
+  const handleSubmit = async (data: FormData) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Sanitize all string inputs before submission
+      const sanitizedData = {
+        ...data,
+        name: sanitizeInput(data.name),
+        description: sanitizeInput(data.description),
+        instructions: sanitizeInput(data.instructions),
+        tags: data.tags.map(tag => sanitizeInput(tag)).filter(tag => tag.length > 0),
+        images,
+      };
 
-  const handleSocialRecipeExtracted = (extractedRecipe: any) => {
-    console.log('Handling extracted recipe in RecipeForm:', extractedRecipe);
-    
-    // Set all the extracted data
-    if (extractedRecipe.name) {
-      console.log('Setting recipe name:', extractedRecipe.name);
-      form.setValue('name', extractedRecipe.name);
-    }
-    
-    if (extractedRecipe.description) {
-      console.log('Setting recipe description');
-      form.setValue('description', extractedRecipe.description);
-    }
-    
-    if (extractedRecipe.category) {
-      console.log('Setting recipe category:', extractedRecipe.category);
-      // Make sure the category matches our available categories
-      const validCategory = categories.includes(extractedRecipe.category) 
-        ? extractedRecipe.category 
-        : 'Pink Drinks';
-      form.setValue('category', validCategory);
-    }
-    
-    // Handle multiple images properly
-    const images = extractedRecipe.images || [];
-    if (images.length > 0) {
-      console.log('Setting recipe images:', images.length);
-      form.setValue('images', images);
-      form.setValue('image_url', images[0]); // Primary image
-    } else if (extractedRecipe.imageUrl && extractedRecipe.imageUrl !== '/placeholder.svg') {
-      form.setValue('images', [extractedRecipe.imageUrl]);
-      form.setValue('image_url', extractedRecipe.imageUrl);
-    }
-    
-    if (extractedRecipe.instructions) {
-      console.log('Setting recipe instructions');
-      form.setValue('instructions', extractedRecipe.instructions);
-    }
-    
-    // Handle tags
-    let tags = [];
-    if (extractedRecipe.tags && Array.isArray(extractedRecipe.tags)) {
-      tags = extractedRecipe.tags.filter(tag => tag && tag.length > 0);
-    }
-    if (tags.length > 0) {
-      console.log('Setting recipe tags:', tags);
-      form.setValue('tags', tags.join(', '));
-    }
+      // Additional validation
+      const nameValidation = validateRecipeName(sanitizedData.name);
+      if (!nameValidation.isValid) {
+        toast({
+          title: "Validation Error",
+          description: nameValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
 
-    // Set other fields with defaults
-    form.setValue('base_price', 5.50);
-    form.setValue('difficulty_level', 2);
-    form.setValue('prep_time_minutes', 10);
-    form.setValue('is_public', true);
+      const descValidation = validateRecipeDescription(sanitizedData.description);
+      if (!descValidation.isValid) {
+        toast({
+          title: "Validation Error", 
+          description: descValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
 
-    console.log('Hiding social extractor');
-    setShowSocialExtractor(false);
-  };
+      const tagsValidation = validateRecipeTags(sanitizedData.tags);
+      if (!tagsValidation.isValid) {
+        toast({
+          title: "Validation Error",
+          description: tagsValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
 
-  const handleSubmit = (data: any) => {
-    console.log('Submitting recipe form data:', data);
-    
-    const recipeData = {
-      ...data,
-      // Ensure images is properly formatted as an array
-      images: Array.isArray(data.images) ? data.images : [],
-      // Use the first image as primary
-      image_url: Array.isArray(data.images) && data.images.length > 0 ? data.images[0] : data.image_url,
-      tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()).filter(tag => tag.length > 0) : [],
-      base_price: parseFloat(data.base_price) || 0,
-    };
-    
-    console.log('Final recipe data for submission:', recipeData);
-    onSubmit(recipeData);
+      await onSubmit(sanitizedData);
+    } catch (error) {
+      console.error('Form submission error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save recipe. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <div className="max-w-4xl mx-auto p-6">
       <RecipeFormHeader 
-        isEditing={!!initialData} 
-        onCancel={onCancel} 
+        isEditing={!!initialData}
+        onCancel={onCancel}
       />
-
-      {isAdmin && (
-        <SocialImportSection
-          showSocialExtractor={showSocialExtractor}
-          onToggleExtractor={setShowSocialExtractor}
-          onRecipeExtracted={handleSocialRecipeExtracted}
-        />
-      )}
-
-      {!isAdmin && showSocialExtractor && (
-        <div className="mb-6">
-          <SocialMediaExtractor onRecipeExtracted={handleSocialRecipeExtracted} />
-        </div>
-      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          <RecipeFormFields
-            form={form}
-            categories={categories}
-            isAdmin={isAdmin}
+          <RecipeFormFields form={form} />
+          
+          <ImageUpload
+            images={images}
+            onImagesChange={setImages}
+            maxImages={5}
           />
 
-          <div className="flex justify-end space-x-3">
-            <Button type="button" variant="outline" onClick={onCancel}>
+          <SocialImportSection />
+
+          <div className="flex gap-4 pt-6">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" className="bg-gradient-to-r from-pink-500 to-purple-600">
-              {initialData ? 'Update Recipe' : 'Create Recipe'}
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+            >
+              {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
             </Button>
           </div>
         </form>
