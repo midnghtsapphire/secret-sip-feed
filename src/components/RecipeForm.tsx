@@ -2,50 +2,12 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Form } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/useAdmin';
 import RecipeFormHeader from './recipe-form/RecipeFormHeader';
-import RecipeFormFields from './recipe-form/RecipeFormFields';
-import ImageUpload from './recipe-form/ImageUpload';
 import SocialImportSection from './recipe-form/SocialImportSection';
-import { 
-  sanitizeInput, 
-  validateRecipeName, 
-  validateRecipeDescription, 
-  validateRecipeInstructions,
-  validateRecipeTags 
-} from '@/utils/inputValidation';
-
-// Enhanced form schema with security validation
-const formSchema = z.object({
-  name: z.string()
-    .min(2, 'Recipe name must be at least 2 characters')
-    .max(100, 'Recipe name must be less than 100 characters')
-    .refine((val) => validateRecipeName(val).isValid, {
-      message: 'Recipe name contains invalid characters'
-    }),
-  description: z.string()
-    .max(1000, 'Description must be less than 1000 characters')
-    .refine((val) => validateRecipeDescription(val).isValid, {
-      message: 'Description contains invalid content'
-    }),
-  category: z.string().min(1, 'Please select a category'),
-  basePrice: z.number().min(0, 'Price must be positive').max(50, 'Price seems too high'),
-  prepTimeMinutes: z.number().min(1, 'Prep time must be at least 1 minute').max(480, 'Prep time seems too long'),
-  difficultyLevel: z.number().min(1).max(5),
-  instructions: z.string()
-    .max(2000, 'Instructions must be less than 2000 characters')
-    .refine((val) => validateRecipeInstructions(val).isValid, {
-      message: 'Instructions contain invalid content'
-    }),
-  tags: z.string(),
-  isPublic: z.boolean().default(false),
-});
-
-type FormData = z.infer<typeof formSchema>;
+import ManualFormSection from './recipe-form/ManualFormSection';
+import { formSchema, FormData } from './recipe-form/recipeFormSchema';
+import { useRecipeFormHandlers } from './recipe-form/useRecipeFormHandlers';
 
 interface RecipeFormProps {
   onSubmit: (data: any) => void;
@@ -55,9 +17,7 @@ interface RecipeFormProps {
 
 const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData }) => {
   const [images, setImages] = useState<string[]>(initialData?.images || []);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSocialExtractor, setShowSocialExtractor] = useState(false);
-  const { toast } = useToast();
   const { isAdmin } = useAdmin();
 
   const form = useForm<FormData>({
@@ -75,76 +35,16 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     },
   });
 
-  const handleRecipeExtracted = (extractedRecipe: any) => {
-    if (extractedRecipe.name) form.setValue('name', extractedRecipe.name);
-    if (extractedRecipe.description) form.setValue('description', extractedRecipe.description);
-    if (extractedRecipe.category) form.setValue('category', extractedRecipe.category);
-    if (extractedRecipe.instructions) form.setValue('instructions', extractedRecipe.instructions);
-    if (extractedRecipe.tags) form.setValue('tags', extractedRecipe.tags.join(', '));
+  const { isSubmitting, handleRecipeExtracted, handleSubmit } = useRecipeFormHandlers({
+    form,
+    images,
+    onSubmit
+  });
+
+  const handleRecipeExtractedWithImages = (extractedRecipe: any) => {
     if (extractedRecipe.images) setImages(extractedRecipe.images);
+    handleRecipeExtracted(extractedRecipe);
     setShowSocialExtractor(false);
-  };
-
-  const handleSubmit = async (data: FormData) => {
-    try {
-      setIsSubmitting(true);
-      
-      // Create the correctly formatted database object
-      const sanitizedData = {
-        name: sanitizeInput(data.name),
-        description: sanitizeInput(data.description),
-        category: data.category,
-        instructions: sanitizeInput(data.instructions),
-        tags: data.tags.split(',').map(tag => sanitizeInput(tag.trim())).filter(tag => tag.length > 0),
-        images,
-        base_price: data.basePrice,
-        prep_time_minutes: data.prepTimeMinutes,
-        difficulty_level: data.difficultyLevel,
-        is_public: data.isPublic,
-      };
-
-      // Additional validation
-      const nameValidation = validateRecipeName(sanitizedData.name);
-      if (!nameValidation.isValid) {
-        toast({
-          title: "Validation Error",
-          description: nameValidation.error,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const descValidation = validateRecipeDescription(sanitizedData.description);
-      if (!descValidation.isValid) {
-        toast({
-          title: "Validation Error", 
-          description: descValidation.error,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const tagsValidation = validateRecipeTags(sanitizedData.tags);
-      if (!tagsValidation.isValid) {
-        toast({
-          title: "Validation Error",
-          description: tagsValidation.error,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await onSubmit(sanitizedData);
-    } catch (error) {
-      console.error('Form submission error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save recipe. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -159,49 +59,22 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
         <SocialImportSection 
           showSocialExtractor={showSocialExtractor}
           onToggleExtractor={setShowSocialExtractor}
-          onRecipeExtracted={handleRecipeExtracted}
+          onRecipeExtracted={handleRecipeExtractedWithImages}
         />
       </div>
 
       {/* Manual Entry Form - Only show when not using social extractor */}
       {!showSocialExtractor && (
-        <div className="border-t pt-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Or Enter Recipe Details Manually</h3>
-          
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-              <RecipeFormFields 
-                form={form} 
-                categories={[]}
-                isAdmin={isAdmin}
-              />
-              
-              <ImageUpload
-                images={images}
-                onImagesChange={setImages}
-                maxImages={5}
-              />
-
-              <div className="flex gap-4 pt-6">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={onCancel}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
-                >
-                  {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </div>
+        <ManualFormSection
+          form={form}
+          images={images}
+          onImagesChange={setImages}
+          onSubmit={handleSubmit}
+          onCancel={onCancel}
+          isSubmitting={isSubmitting}
+          isAdmin={isAdmin}
+          initialData={initialData}
+        />
       )}
     </div>
   );
