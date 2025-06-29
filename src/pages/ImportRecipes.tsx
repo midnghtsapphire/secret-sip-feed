@@ -20,7 +20,11 @@ const ImportRecipes = () => {
     setIsImporting(true);
     
     try {
-      console.log('Extracted recipe data:', extractedRecipe);
+      console.log('📥 IMPORT: Extracted recipe data received:', extractedRecipe);
+      console.log('🖼️ IMPORT: Image data from extraction:', {
+        imageUrl: extractedRecipe.imageUrl,
+        images: extractedRecipe.images
+      });
       
       const recipeData = {
         name: extractedRecipe.name,
@@ -36,7 +40,11 @@ const ImportRecipes = () => {
         is_public: true,
       };
 
-      console.log('Recipe data being saved:', recipeData);
+      console.log('💾 IMPORT: Recipe data being saved to database:', recipeData);
+      console.log('🖼️ IMPORT: Final image data for save:', {
+        images: recipeData.images,
+        image_url: recipeData.image_url
+      });
 
       await createRecipe.mutateAsync(recipeData);
       
@@ -47,7 +55,7 @@ const ImportRecipes = () => {
 
       navigate('/recipes');
     } catch (error) {
-      console.error('Error importing recipe:', error);
+      console.error('❌ IMPORT: Error importing recipe:', error);
       toast({
         title: "Import failed",
         description: "There was an error importing the recipe. Please try again.",

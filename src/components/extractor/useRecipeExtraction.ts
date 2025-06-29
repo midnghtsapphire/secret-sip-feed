@@ -126,20 +126,42 @@ export const useRecipeExtraction = () => {
 
       if (data?.name) {
         console.log('✅ EXTRACT: Recipe extracted successfully:', data.name);
+        console.log('🖼️ EXTRACT: Raw image data from API:', {
+          imageUrl: data.imageUrl,
+          images: data.images
+        });
         
-        // Ensure images array is properly formatted
+        // Ensure images array is properly formatted and handle all image sources
         const images = [];
+        
+        // First, add any images from the images array
         if (data.images && Array.isArray(data.images)) {
-          images.push(...data.images.filter(img => img && typeof img === 'string' && img !== '/placeholder.svg'));
-        } else if (data.imageUrl && data.imageUrl !== '/placeholder.svg') {
-          images.push(data.imageUrl);
+          console.log('📷 EXTRACT: Processing images array:', data.images);
+          data.images.forEach(img => {
+            if (img && typeof img === 'string' && img.trim() !== '' && img !== '/placeholder.svg') {
+              console.log('📷 EXTRACT: Adding image from array:', img);
+              images.push(img.trim());
+            }
+          });
         }
+        
+        // Then, add the main imageUrl if it's not already included
+        if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' && data.imageUrl !== '/placeholder.svg') {
+          if (!images.includes(data.imageUrl.trim())) {
+            console.log('📷 EXTRACT: Adding main imageUrl:', data.imageUrl);
+            images.unshift(data.imageUrl.trim()); // Add to beginning as primary image
+          }
+        }
+        
+        console.log('🖼️ EXTRACT: Final processed images array:', images);
         
         const enrichedData = {
           ...data,
           images,
           imageUrl: images.length > 0 ? images[0] : '/placeholder.svg'
         };
+        
+        console.log('✨ EXTRACT: Final enriched data:', enrichedData);
         
         setExtractedRecipe(enrichedData);
         toast({
