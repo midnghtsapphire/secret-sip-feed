@@ -1,3 +1,4 @@
+
 // Content extraction utilities
 export interface ExtractedRecipe {
   name: string;
@@ -11,7 +12,8 @@ export interface ExtractedRecipe {
   originalUrl: string;
 }
 
-export function extractRecipeName(content: string): string {
+export function extractRecipeName(content: string, comments?: string[]): string {
+  // First try to extract from main content
   const patterns = [
     // Look for Starbucks-specific patterns
     /starbucks\s+([^.\n!?]{5,50})/i,
@@ -35,6 +37,20 @@ export function extractRecipeName(content: string): string {
     }
   }
   
+  // If no good name found in main content, try comments
+  if (comments && comments.length > 0) {
+    const commentsText = comments.join(' ');
+    for (const pattern of patterns) {
+      const match = commentsText.match(pattern);
+      if (match && match[1]) {
+        const name = match[1].trim().replace(/[^\w\s]/g, '').slice(0, 50);
+        if (name.length >= 3 && !name.toLowerCase().includes('app') && !name.toLowerCase().includes('download')) {
+          return name;
+        }
+      }
+    }
+  }
+  
   // Fallback: look for any capitalized words that might be a drink name
   const words = content.split(/\s+/).filter(word => 
     word.length > 2 && 
@@ -50,7 +66,7 @@ export function extractRecipeName(content: string): string {
   return words[0] || 'Starbucks Secret Menu Drink';
 }
 
-export function extractDescription(content: string): string {
+export function extractDescription(content: string, comments?: string[]): string {
   // Get the full content without truncating too early
   const fullText = content.replace(/[#@]/g, '').trim();
   
@@ -69,12 +85,25 @@ export function extractDescription(content: string): string {
              !lower.includes('comment');
     });
   
-  // Take more sentences for a fuller description
-  const description = sentences.slice(0, 5).join('. ').trim();
+  // If we have good sentences from main content, use them
+  if (sentences.length > 0) {
+    const description = sentences.slice(0, 3).join('. ').trim();
+    if (description.length > 50) {
+      return description.slice(0, 500);
+    }
+  }
   
-  // If we have a good description, return it, otherwise return the first part of full text
-  if (description.length > 50) {
-    return description.slice(0, 500);
+  // If main content is not descriptive enough, check comments
+  if (comments && comments.length > 0) {
+    const commentsText = comments.join(' ').slice(0, 500);
+    const commentSentences = commentsText
+      .split(/[.!?]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 15 && !s.toLowerCase().includes('follow') && !s.toLowerCase().includes('like'));
+    
+    if (commentSentences.length > 0) {
+      return commentSentences.slice(0, 2).join('. ').slice(0, 500);
+    }
   }
   
   // Fallback to first meaningful chunk of text
@@ -82,8 +111,9 @@ export function extractDescription(content: string): string {
   return fallback || 'Delicious Starbucks secret menu drink recipe!';
 }
 
-export function extractCategory(content: string): string {
-  const lowerContent = content.toLowerCase();
+export function extractCategory(content: string, comments?: string[]): string {
+  const allText = comments ? `${content} ${comments.join(' ')}` : content;
+  const lowerContent = allText.toLowerCase();
   
   // Check for specific drink categories based on keywords - match database enum exactly
   if (lowerContent.includes('pink') || lowerContent.includes('strawberry') || lowerContent.includes('berry') || lowerContent.includes('rose')) {
@@ -112,11 +142,11 @@ export function extractCategory(content: string): string {
   return 'Pink Drinks';
 }
 
-export function extractInstructions(content: string): string {
-  // Look for the FULL ORDER section specifically
+export function extractInstructions(content: string, comments?: string[]): string {
+  // First try to find instructions in main content
   const fullOrderMatch = content.match(/FULL ORDER[:\s]*([^]+?)(?=\n\n|\n[A-Z]|$)/i);
   if (fullOrderMatch && fullOrderMatch[1] && fullOrderMatch[1].length > 20) {
-    return fullOrderMatch[1].trim().slice(0, 1000); // Allow longer instructions
+    return fullOrderMatch[1].trim().slice(0, 1000);
   }
   
   const instructionPatterns = [
@@ -130,12 +160,48 @@ export function extractInstructions(content: string): string {
     if (match && match[1] && match[1].length > 20) {
       const instructions = match[1].trim();
       if (!instructions.toLowerCase().includes('download') && !instructions.toLowerCase().includes('app')) {
-        return instructions.slice(0, 1000); // Allow longer instructions
+        return instructions.slice(0, 1000);
       }
     }
   }
   
-  // Fallback: extract lines that look like instructions, but keep more content
+  // If no good instructions in main content, check comments
+  if (comments && comments.length > 0) {
+    const commentsText = comments.join('\n');
+    
+    // Look for detailed recipe instructions in comments
+    const recipeCommentPatterns = [
+      /(?:recipe|order|instructions?)[:\s]*([^]+?)(?=\n\n|$)/i,
+      /(?:here's how|how to make)[:\s]*([^]+?)(?=\n\n|$)/i,
+      /(?:venti|grande|tall)[^]*?(?:pump|shot|add|with)[^]*?(?=\n\n|$)/i,
+    ];
+    
+    for (const pattern of recipeCommentPatterns) {
+      const match = commentsText.match(pattern);
+      if (match && match[1] && match[1].length > 30) {
+        const instructions = match[1].trim();
+        if (!instructions.toLowerCase().includes('download') && !instructions.toLowerCase().includes('app')) {
+          return instructions.slice(0, 1000);
+        }
+      }
+    }
+    
+    // Look for any comment with recipe-like content (mentions sizes, pumps, etc.)
+    const recipeKeywords = ['pump', 'shot', 'venti', 'grande', 'tall', 'add', 'ask for', 'extra', 'light', 'heavy'];
+    const recipeComment = comments.find(comment => {
+      const lower = comment.toLowerCase();
+      return recipeKeywords.some(keyword => lower.includes(keyword)) && 
+             comment.length > 30 && 
+             !lower.includes('follow') && 
+             !lower.includes('like');
+    });
+    
+    if (recipeComment) {
+      return recipeComment.slice(0, 1000);
+    }
+  }
+  
+  // Fallback: extract lines that look like instructions
   const lines = content.split('\n')
     .filter(line => line.trim().length > 5)
     .filter(line => {
@@ -146,18 +212,20 @@ export function extractInstructions(content: string): string {
              !lower.includes('like') &&
              !lower.includes('comment');
     })
-    .slice(0, 10); // Keep more lines
+    .slice(0, 10);
   
   return lines.join('\n') || 'Ask your barista to make this special drink!';
 }
 
-export function extractTags(content: string): string[] {
+export function extractTags(content: string, comments?: string[]): string[] {
   const commonTags = [
     'viral', 'tiktok', 'instagram', 'lemon8', 'popular', 'trending', 
     'sweet', 'iced', 'hot', 'frappuccino', 'latte', 'pink', 'fruity', 
     'budget', 'cheap', 'starbucks', 'secret', 'menu', 'drink'
   ];
-  const lowerContent = content.toLowerCase();
+  
+  const allText = comments ? `${content} ${comments.join(' ')}` : content;
+  const lowerContent = allText.toLowerCase();
   
   return commonTags.filter(tag => lowerContent.includes(tag)).slice(0, 5);
 }

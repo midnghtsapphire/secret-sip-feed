@@ -104,6 +104,10 @@ serve(async (req) => {
       console.log('📝 Extracted content length:', content.length);
       console.log('📖 Content preview:', content.substring(0, 300));
       
+      // Extract comments for additional recipe information
+      const comments = extractCommentsFromApifyResult(firstResult, sanitizedUrl);
+      console.log('💬 Extracted comments count:', comments.length);
+      
       // Extract image using improved method
       const extractedImage = extractImageFromApifyResult(firstResult, sanitizedUrl);
       console.log('🖼️ Extracted image:', extractedImage);
@@ -128,16 +132,16 @@ serve(async (req) => {
         );
       }
 
-      // Extract recipe data
-      const recipeName = extractRecipeName(content);
+      // Extract recipe data with comments support
+      const recipeName = extractRecipeName(content, comments);
       console.log('🏷️ Extracted recipe name:', recipeName);
       
       const recipe = {
         name: recipeName,
-        description: extractDescription(content),
-        category: extractCategory(content),
-        instructions: extractInstructions(content),
-        tags: extractTags(content),
+        description: extractDescription(content, comments),
+        category: extractCategory(content, comments),
+        instructions: extractInstructions(content, comments),
+        tags: extractTags(content, comments),
         imageUrl: extractedImage,
         images: extractedImage !== '/placeholder.svg' ? [extractedImage] : [],
         source: getDomainFromUrl(sanitizedUrl),
@@ -151,7 +155,8 @@ serve(async (req) => {
         hasInstructions: !!recipe.instructions,
         tagCount: recipe.tags.length,
         imageCount: recipe.images.length,
-        hasImage: recipe.imageUrl !== '/placeholder.svg'
+        hasImage: recipe.imageUrl !== '/placeholder.svg',
+        commentsUsed: comments.length > 0
       });
 
       // More lenient validation - accept any meaningful name

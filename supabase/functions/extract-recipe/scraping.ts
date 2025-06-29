@@ -1,4 +1,3 @@
-
 // Apify integration utilities
 export interface ApifyRunOptions {
   timeout: number;
@@ -156,6 +155,52 @@ export function extractContentFromApifyResult(result: any, url: string): string 
   } else {
     return result.text || result.content || result.description || result.title || '';
   }
+}
+
+export function extractCommentsFromApifyResult(result: any, url: string): string[] {
+  console.log('Extracting comments from result for URL:', url);
+  
+  const comments: string[] = [];
+  
+  if (url.includes('tiktok')) {
+    // TikTok results might have comments in different structures
+    if (result.comments && Array.isArray(result.comments)) {
+      comments.push(...result.comments.map((comment: any) => 
+        typeof comment === 'string' ? comment : comment.text || comment.comment || ''
+      ).filter(Boolean));
+    }
+    
+    // Sometimes comments are in a different field
+    if (result.commentsList && Array.isArray(result.commentsList)) {
+      comments.push(...result.commentsList.map((comment: any) => 
+        comment.text || comment.comment || ''
+      ).filter(Boolean));
+    }
+  } else if (url.includes('instagram')) {
+    // Instagram comments structure
+    if (result.comments && Array.isArray(result.comments)) {
+      comments.push(...result.comments.map((comment: any) => 
+        comment.text || comment.comment || ''
+      ).filter(Boolean));
+    }
+  }
+  
+  // Filter out short comments and common non-recipe comments
+  const filteredComments = comments
+    .filter(comment => comment.length > 15)
+    .filter(comment => {
+      const lower = comment.toLowerCase();
+      return !lower.includes('first') && 
+             !lower.includes('love this') && 
+             !lower.includes('so good') &&
+             !lower.includes('😍') &&
+             !lower.includes('❤️') &&
+             lower.length > 20;
+    })
+    .slice(0, 10); // Limit to first 10 relevant comments
+  
+  console.log('Extracted comments count:', filteredComments.length);
+  return filteredComments;
 }
 
 export function extractImageFromApifyResult(result: any, url: string): string {
