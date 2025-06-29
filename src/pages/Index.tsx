@@ -10,6 +10,7 @@ import ViralStickers from '../components/index/ViralStickers';
 import BreadcrumbNavigation from '../components/index/BreadcrumbNavigation';
 import RecipesSection from '../components/index/RecipesSection';
 import SeoSection from '../components/index/SeoSection';
+import RecipeCleanupButton from '../components/admin/RecipeCleanupButton';
 import { useRecipes } from '../hooks/useRecipes';
 
 const Index = () => {
@@ -59,6 +60,11 @@ const Index = () => {
       
       <main className="max-w-7xl mx-auto px-4 pb-20 relative z-20">
         <BreadcrumbNavigation activeCategory={activeCategory} />
+
+        {/* Admin Controls */}
+        <div className="mb-4 flex justify-end">
+          <RecipeCleanupButton />
+        </div>
 
         {/* Category Filter */}
         <div className="mb-6">
