@@ -12,19 +12,18 @@ interface BasicRecipeFieldsProps {
 }
 
 const BasicRecipeFields: React.FC<BasicRecipeFieldsProps> = ({ form, categories }) => {
-  const defaultCategories = [
-    'Pretty n Pink',
-    'Mad Matchas', 
-    'Blues Clues',
-    'Foam Frenzy',
-    'Mocha Magic',
+  // Use correct database enum categories
+  const validCategories = [
+    'Pink Drinks',
+    'Blue Drinks', 
+    'Green Teas',
+    'Foam Experts',
     'Budget Babe Brews',
+    'Viral Today',
     'Caramel Dreams',
     'Merry Mocha',
     'Expresso'
   ];
-
-  const categoriesToUse = categories.length > 0 ? categories : defaultCategories;
 
   return (
     <>
@@ -35,7 +34,7 @@ const BasicRecipeFields: React.FC<BasicRecipeFieldsProps> = ({ form, categories 
           <FormItem>
             <FormLabel>Recipe Name *</FormLabel>
             <FormControl>
-              <Input placeholder="Enter recipe name" {...field} />
+              <Input placeholder="Enter recipe name..." {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -50,9 +49,9 @@ const BasicRecipeFields: React.FC<BasicRecipeFieldsProps> = ({ form, categories 
             <FormLabel>Description</FormLabel>
             <FormControl>
               <Textarea 
-                placeholder="Describe your recipe..."
-                className="min-h-[80px]"
-                {...field}
+                placeholder="Describe your recipe..." 
+                className="min-h-[100px]"
+                {...field} 
               />
             </FormControl>
             <FormMessage />
@@ -73,7 +72,7 @@ const BasicRecipeFields: React.FC<BasicRecipeFieldsProps> = ({ form, categories 
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {categoriesToUse.map((category) => (
+                {validCategories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
@@ -93,9 +92,9 @@ const BasicRecipeFields: React.FC<BasicRecipeFieldsProps> = ({ form, categories 
             <FormLabel>Instructions</FormLabel>
             <FormControl>
               <Textarea 
-                placeholder="Step-by-step instructions..."
+                placeholder="How to make this recipe..." 
                 className="min-h-[120px]"
-                {...field}
+                {...field} 
               />
             </FormControl>
             <FormMessage />
@@ -111,8 +110,8 @@ const BasicRecipeFields: React.FC<BasicRecipeFieldsProps> = ({ form, categories 
             <FormLabel>Tags</FormLabel>
             <FormControl>
               <Input 
-                placeholder="iced, caramel, foam (comma-separated)"
-                {...field}
+                placeholder="Enter tags separated by commas..." 
+                {...field} 
               />
             </FormControl>
             <FormMessage />

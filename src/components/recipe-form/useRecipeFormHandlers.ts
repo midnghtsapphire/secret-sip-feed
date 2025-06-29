@@ -16,6 +16,17 @@ interface UseRecipeFormHandlersProps {
   onSubmit: (data: any) => void;
 }
 
+// Category mapping for social extraction compatibility
+const categoryMapping: Record<string, string> = {
+  'Pretty n Pink': 'Pink Drinks',
+  'Mad Matchas': 'Green Teas', 
+  'Blues Clues': 'Blue Drinks',
+  'Foam Frenzy': 'Foam Experts',
+  'Cold Drinks': 'Pink Drinks', // Default fallback
+  'Hot Drinks': 'Merry Mocha',
+  'Iced Drinks': 'Blue Drinks'
+};
+
 export const useRecipeFormHandlers = ({
   form,
   images,
@@ -27,7 +38,18 @@ export const useRecipeFormHandlers = ({
   const handleRecipeExtracted = (extractedRecipe: any) => {
     if (extractedRecipe.name) form.setValue('name', extractedRecipe.name);
     if (extractedRecipe.description) form.setValue('description', extractedRecipe.description);
-    if (extractedRecipe.category) form.setValue('category', extractedRecipe.category);
+    if (extractedRecipe.category) {
+      // Map the category to a valid database enum value
+      const mappedCategory = categoryMapping[extractedRecipe.category] || extractedRecipe.category;
+      const validCategories = ['Pink Drinks', 'Blue Drinks', 'Green Teas', 'Foam Experts', 'Budget Babe Brews', 'Viral Today', 'Caramel Dreams', 'Merry Mocha', 'Expresso'];
+      
+      if (validCategories.includes(mappedCategory)) {
+        form.setValue('category', mappedCategory);
+      } else {
+        // Default to Pink Drinks if category is invalid
+        form.setValue('category', 'Pink Drinks');
+      }
+    }
     if (extractedRecipe.instructions) form.setValue('instructions', extractedRecipe.instructions);
     if (extractedRecipe.tags) form.setValue('tags', extractedRecipe.tags.join(', '));
   };

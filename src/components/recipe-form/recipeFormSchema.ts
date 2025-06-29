@@ -7,6 +7,19 @@ import {
   validateRecipeTags 
 } from '@/utils/inputValidation';
 
+// Valid categories from database enum
+const validCategories = [
+  'Pink Drinks',
+  'Blue Drinks', 
+  'Green Teas',
+  'Foam Experts',
+  'Budget Babe Brews',
+  'Viral Today',
+  'Caramel Dreams',
+  'Merry Mocha',
+  'Expresso'
+] as const;
+
 export const formSchema = z.object({
   name: z.string()
     .min(2, 'Recipe name must be at least 2 characters')
@@ -19,7 +32,9 @@ export const formSchema = z.object({
     .refine((val) => validateRecipeDescription(val).isValid, {
       message: 'Description contains invalid content'
     }),
-  category: z.string().min(1, 'Please select a category'),
+  category: z.enum(validCategories, {
+    errorMap: () => ({ message: 'Please select a valid category' })
+  }),
   basePrice: z.number().min(0, 'Price must be positive').max(50, 'Price seems too high'),
   prepTimeMinutes: z.number().min(1, 'Prep time must be at least 1 minute').max(480, 'Prep time seems too long'),
   difficultyLevel: z.number().min(1).max(5),
