@@ -25,7 +25,8 @@ const Index = () => {
     'Mocha Magic',
     'Budget Babe Brews',
     'Caramel Dreams',
-    'Merry Mocha'
+    'Merry Mocha',
+    'Expresso'
   ];
 
   // Filter recipes based on active category and only show public recipes

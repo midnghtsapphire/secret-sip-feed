@@ -23,6 +23,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
       case 'budget babe brews': return '💰';
       case 'caramel dreams': return '🥤'; // Caramel drink cup
       case 'merry mocha': return '☕'; // Hot coffee for mocha
+      case 'expresso': return '☕'; // Coffee for espresso
       default: return '🥤';
     }
   };

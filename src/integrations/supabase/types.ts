@@ -217,6 +217,7 @@ export type Database = {
         | "Viral Today"
         | "Caramel Dreams"
         | "Merry Mocha"
+        | "Expresso"
       user_role: "admin" | "user"
     }
     CompositeTypes: {
@@ -343,6 +344,7 @@ export const Constants = {
         "Viral Today",
         "Caramel Dreams",
         "Merry Mocha",
+        "Expresso",
       ],
       user_role: ["admin", "user"],
     },

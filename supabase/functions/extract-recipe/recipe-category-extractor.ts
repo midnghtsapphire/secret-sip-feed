@@ -43,6 +43,11 @@ export function extractCategory(content: string, comments?: string[]): string {
       strongKeywords: ['mocha frappuccino', 'java chip', 'chocolate coffee', 'mocha latte']
     },
     {
+      category: 'Expresso',
+      keywords: ['espresso', 'shot', 'doppio', 'ristretto', 'lungo', 'americano', 'cortado'],
+      strongKeywords: ['espresso shot', 'double shot', 'espresso drink', 'cortado', 'americano']
+    },
+    {
       category: 'Budget Babe Brews',
       keywords: ['cheap', 'budget', 'affordable', 'under', '$', 'save', 'deal'],
       strongKeywords: ['budget drink', 'cheap starbucks', 'under $5']
