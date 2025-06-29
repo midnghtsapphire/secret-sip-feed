@@ -21,7 +21,8 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
     'Foam Frenzy',
     'Mocha Magic',
     'Budget Babe Brews',
-    'Caramel Dreams'
+    'Caramel Dreams',
+    'Merry Mocha'
   ];
 
   const categoriesToUse = categories.length > 0 ? categories : defaultCategories;

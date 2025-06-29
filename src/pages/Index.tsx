@@ -21,7 +21,8 @@ const Index = () => {
     'Foam Frenzy',
     'Mocha Magic',
     'Budget Babe Brews',
-    'Caramel Dreams'
+    'Caramel Dreams',
+    'Merry Mocha'
   ];
 
   const menuChoices = [
