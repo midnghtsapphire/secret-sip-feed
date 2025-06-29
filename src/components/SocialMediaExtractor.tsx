@@ -26,6 +26,49 @@ interface SocialMediaExtractorProps {
   onRecipeExtracted: (recipe: ExtractedRecipe) => void;
 }
 
+// Map extracted categories to valid database categories
+const mapCategoryToValid = (extractedCategory: string): string => {
+  const categoryMap: { [key: string]: string } = {
+    'foam frenzy': 'Cold Drinks',
+    'hot drinks': 'Hot Drinks',
+    'cold drinks': 'Cold Drinks',
+    'blended': 'Blended',
+    'refreshers': 'Refreshers',
+    'tea': 'Tea',
+    'coffee': 'Hot Drinks',
+    'frappuccino': 'Blended',
+    'smoothie': 'Blended',
+    'latte': 'Hot Drinks',
+    'cappuccino': 'Hot Drinks',
+    'espresso': 'Hot Drinks',
+    'macchiato': 'Hot Drinks',
+    'mocha': 'Hot Drinks',
+    'americano': 'Hot Drinks',
+    'refresher': 'Refreshers',
+    'iced': 'Cold Drinks',
+    'frozen': 'Blended',
+    'shake': 'Blended',
+    'juice': 'Cold Drinks'
+  };
+
+  const lowerExtracted = extractedCategory.toLowerCase();
+  
+  // Check for exact matches first
+  if (categoryMap[lowerExtracted]) {
+    return categoryMap[lowerExtracted];
+  }
+  
+  // Check for partial matches
+  for (const [key, value] of Object.entries(categoryMap)) {
+    if (lowerExtracted.includes(key) || key.includes(lowerExtracted)) {
+      return value;
+    }
+  }
+  
+  // Default fallback
+  return 'Cold Drinks';
+};
+
 const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExtracted }) => {
   const {
     url,
@@ -40,7 +83,13 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
 
   const handleUseRecipe = () => {
     if (extractedRecipe) {
-      onRecipeExtracted(extractedRecipe);
+      // Map the category to a valid one before passing to parent
+      const mappedRecipe = {
+        ...extractedRecipe,
+        category: mapCategoryToValid(extractedRecipe.category)
+      };
+      
+      onRecipeExtracted(mappedRecipe);
       setExtractedRecipe(null);
       setUrl('');
     }
@@ -61,7 +110,10 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
 
       {extractedRecipe && (
         <RecipePreview
-          recipe={extractedRecipe}
+          recipe={{
+            ...extractedRecipe,
+            category: mapCategoryToValid(extractedRecipe.category)
+          }}
           onUseRecipe={handleUseRecipe}
           onReset={handleReset}
         />
