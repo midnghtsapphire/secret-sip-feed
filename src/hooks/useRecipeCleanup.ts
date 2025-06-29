@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -87,7 +86,7 @@ export const useRecipeCleanup = () => {
     }
   };
 
-  const categorizeRecipe = (recipe: Recipe): { id: string; category: string } | null => {
+  const categorizeRecipe = (recipe: Recipe): { id: string; category: Database['public']['Enums']['recipe_category'] } | null => {
     // Smart categorization based on recipe name, description, and tags
     const text = `${recipe.name} ${recipe.description || ''} ${recipe.tags?.join(' ') || ''}`.toLowerCase();
     
