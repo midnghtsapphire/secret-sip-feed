@@ -5,7 +5,7 @@ import { isValidUrl, isDomainAllowed, sanitizeInput, validateRequest, defaultCon
 import { extractRecipeName, extractDescription, extractCategory, extractInstructions, extractTags, getDomainFromUrl } from './content-extraction.ts';
 import { isAppRedirectContent, isValidRecipeName } from './content-validation.ts';
 import { corsHeaders, createErrorResponse, createSuccessResponse, handleOptionsRequest } from './http-utils.ts';
-import { runApifyActor, getActorIdForPlatform, extractContentFromApifyResult, extractImageFromApifyResult, defaultApifyOptions } from './scraping.ts';
+import { runApifyActor, getActorIdForPlatform, extractContentFromApifyResult, extractCommentsFromApifyResult, extractImageFromApifyResult, defaultApifyOptions } from './scraping.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
