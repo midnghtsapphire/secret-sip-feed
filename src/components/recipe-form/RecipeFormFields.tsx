@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -15,6 +14,18 @@ interface RecipeFormFieldsProps {
 }
 
 const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, isAdmin }) => {
+  const defaultCategories = [
+    'Pretty n Pink',
+    'Mad Matchas', 
+    'Blues Clues',
+    'Foam Frenzy',
+    'Mocha Magic',
+    'Budget Babe Brews',
+    'Caramel Dreams'
+  ];
+
+  const categoriesToUse = categories.length > 0 ? categories : defaultCategories;
+
   return (
     <>
       <FormField
@@ -62,7 +73,7 @@ const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, i
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {categories.map((category) => (
+                {categoriesToUse.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>

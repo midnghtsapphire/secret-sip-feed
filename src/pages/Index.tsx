@@ -20,7 +20,8 @@ const Index = () => {
     'Blues Clues',
     'Foam Frenzy',
     'Mocha Magic',
-    'Budget Babe Brews'
+    'Budget Babe Brews',
+    'Caramel Dreams'
   ];
 
   const menuChoices = [

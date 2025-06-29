@@ -21,6 +21,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
       case 'foam frenzy': return '☁️';
       case 'mocha magic': return '☕';
       case 'budget babe brews': return '💰';
+      case 'caramel dreams': return '🍯';
       default: return '🥤';
     }
   };

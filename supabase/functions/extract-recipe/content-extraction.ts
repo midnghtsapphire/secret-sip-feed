@@ -1,4 +1,3 @@
-
 // Content extraction utilities
 export interface ExtractedRecipe {
   name: string;
@@ -116,6 +115,9 @@ export function extractCategory(content: string, comments?: string[]): string {
   const lowerContent = allText.toLowerCase();
   
   // Check for specific drink categories based on keywords - match database enum exactly
+  if (lowerContent.includes('caramel') || lowerContent.includes('butterscotch') || lowerContent.includes('toffee')) {
+    return 'Caramel Dreams';
+  }
   if (lowerContent.includes('pink') || lowerContent.includes('strawberry') || lowerContent.includes('berry') || lowerContent.includes('rose')) {
     return 'Pink Drinks';
   }
@@ -221,7 +223,7 @@ export function extractTags(content: string, comments?: string[]): string[] {
   const commonTags = [
     'viral', 'tiktok', 'instagram', 'lemon8', 'popular', 'trending', 
     'sweet', 'iced', 'hot', 'frappuccino', 'latte', 'pink', 'fruity', 
-    'budget', 'cheap', 'starbucks', 'secret', 'menu', 'drink'
+    'budget', 'cheap', 'starbucks', 'secret', 'menu', 'drink', 'caramel'
   ];
   
   const allText = comments ? `${content} ${comments.join(' ')}` : content;
