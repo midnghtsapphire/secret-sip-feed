@@ -15,14 +15,14 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'all': return '🔥';
-      case 'pretty n pink': return '🌸';
-      case 'mad matchas': return '🍵';
-      case 'blues clues': return '🧊';
-      case 'foam frenzy': return '☁️';
-      case 'mocha magic': return '☕';
+      case 'pretty n pink': return '🥤'; // Pink drink cup
+      case 'mad matchas': return '🧋'; // Bubble tea cup for matcha
+      case 'blues clues': return '🥤'; // Blue drink cup
+      case 'foam frenzy': return '🥛'; // Milk/foam cup
+      case 'mocha magic': return '☕'; // Hot coffee for mocha
       case 'budget babe brews': return '💰';
-      case 'caramel dreams': return '🍯';
-      case 'merry mocha': return '☕';
+      case 'caramel dreams': return '🥤'; // Caramel drink cup
+      case 'merry mocha': return '☕'; // Hot coffee for mocha
       default: return '🥤';
     }
   };
