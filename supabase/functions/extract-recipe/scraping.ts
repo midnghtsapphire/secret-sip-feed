@@ -1,3 +1,4 @@
+
 // Apify integration utilities
 export interface ApifyRunOptions {
   timeout: number;
@@ -203,8 +204,48 @@ export function extractCommentsFromApifyResult(result: any, url: string): string
   return filteredComments;
 }
 
+// Helper function to extract YouTube video ID from URL
+function extractYouTubeVideoId(url: string): string | null {
+  console.log('Extracting YouTube video ID from:', url);
+  
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
+    /youtube\.com\/v\/([^&\n?#]+)/,
+    /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      console.log('Found YouTube video ID:', match[1]);
+      return match[1];
+    }
+  }
+  
+  console.log('No YouTube video ID found');
+  return null;
+}
+
 export function extractImageFromApifyResult(result: any, url: string): string {
   console.log('Extracting image from result for URL:', url);
+  
+  // Special handling for YouTube URLs
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    const videoId = extractYouTubeVideoId(url);
+    if (videoId) {
+      // Try different YouTube thumbnail quality options
+      const thumbnailOptions = [
+        `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`, // Highest quality
+        `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,     // High quality
+        `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,     // Medium quality
+        `https://img.youtube.com/vi/${videoId}/0.jpg`              // Default
+      ];
+      
+      console.log('Generated YouTube thumbnail URLs:', thumbnailOptions);
+      // Return the highest quality thumbnail URL
+      return thumbnailOptions[0];
+    }
+  }
   
   if (url.includes('tiktok')) {
     // Try multiple TikTok image sources
