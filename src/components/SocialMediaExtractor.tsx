@@ -20,6 +20,7 @@ interface ExtractedRecipe {
   category: string;
   source: string;
   originalUrl: string;
+  images?: string[];
 }
 
 interface SocialMediaExtractorProps {
@@ -104,11 +105,17 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
         description = extractedRecipe.instructions.substring(0, 200) + '...';
       }
       
+      // Ensure we have proper image data
+      const images = extractedRecipe.images || [];
+      const imageUrl = extractedRecipe.imageUrl || images[0] || '';
+      
       const mappedRecipe = {
         ...extractedRecipe,
         name: recipeName,
         description: description,
-        category: mapCategoryToValid(extractedRecipe.category)
+        category: mapCategoryToValid(extractedRecipe.category),
+        images: images,
+        imageUrl: imageUrl
       };
       
       console.log('Mapped recipe data:', mappedRecipe);

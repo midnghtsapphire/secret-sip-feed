@@ -20,14 +20,14 @@ const ImportRecipes = () => {
     setIsImporting(true);
     
     try {
+      console.log('Extracted recipe data:', extractedRecipe);
+      
       const recipeData = {
         name: extractedRecipe.name,
         description: extractedRecipe.description,
         category: extractedRecipe.category,
         images: extractedRecipe.images || [],
-        image_url: extractedRecipe.images && extractedRecipe.images.length > 0 
-          ? extractedRecipe.images[0] 
-          : (extractedRecipe.imageUrl !== '/placeholder.svg' ? extractedRecipe.imageUrl : ''),
+        image_url: extractedRecipe.imageUrl || extractedRecipe.images?.[0] || '',
         instructions: extractedRecipe.instructions || '',
         base_price: 5.50,
         difficulty_level: 2,
@@ -35,6 +35,8 @@ const ImportRecipes = () => {
         tags: extractedRecipe.tags || [],
         is_public: true,
       };
+
+      console.log('Recipe data being saved:', recipeData);
 
       await createRecipe.mutateAsync(recipeData);
       
