@@ -27,7 +27,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     defaultValues: {
       name: initialData?.name || '',
       description: initialData?.description || '',
-      category: initialData?.category || 'Pretty n Pink',
+      category: initialData?.category || 'Pink Drinks',
       image_url: initialData?.image_url || '',
       images: initialData?.image_url ? [initialData.image_url] : [],
       base_price: initialData?.base_price || 0,
@@ -40,12 +40,12 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   });
 
   const categories = [
-    'Pretty n Pink',
-    'Mad Matchas', 
-    'Blues Clues',
-    'Foam Frenzy',
-    'Mocha Magic',
-    'Budget Babe Brews'
+    'Pink Drinks',
+    'Blue Drinks', 
+    'Green Teas',
+    'Foam Experts',
+    'Budget Babe Brews',
+    'Viral Today'
   ];
 
   const handleSocialRecipeExtracted = (extractedRecipe: any) => {
@@ -67,7 +67,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       // Make sure the category matches our available categories
       const validCategory = categories.includes(extractedRecipe.category) 
         ? extractedRecipe.category 
-        : 'Pretty n Pink';
+        : 'Pink Drinks';
       form.setValue('category', validCategory);
     }
     

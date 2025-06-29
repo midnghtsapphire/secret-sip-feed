@@ -1,4 +1,3 @@
-
 // Content extraction utilities
 export interface ExtractedRecipe {
   name: string;
@@ -74,28 +73,31 @@ export function extractDescription(content: string): string {
 export function extractCategory(content: string): string {
   const lowerContent = content.toLowerCase();
   
-  // Check for specific drink categories based on keywords - ensure they match database enum
+  // Check for specific drink categories based on keywords - match database enum exactly
   if (lowerContent.includes('pink') || lowerContent.includes('strawberry') || lowerContent.includes('berry') || lowerContent.includes('rose')) {
-    return 'Pretty n Pink';
+    return 'Pink Drinks';
   }
   if (lowerContent.includes('blue') || lowerContent.includes('blueberry') || lowerContent.includes('ocean')) {
-    return 'Blues Clues';
+    return 'Blue Drinks';
   }
   if (lowerContent.includes('matcha') || lowerContent.includes('green tea') || lowerContent.includes('green')) {
-    return 'Mad Matchas';
+    return 'Green Teas';
   }
   if (lowerContent.includes('foam') || lowerContent.includes('frothy') || lowerContent.includes('whip') || lowerContent.includes('cream')) {
-    return 'Foam Frenzy';
+    return 'Foam Experts';
   }
   if (lowerContent.includes('mocha') || lowerContent.includes('chocolate') || lowerContent.includes('coffee') || lowerContent.includes('espresso')) {
-    return 'Mocha Magic';
+    return 'Pink Drinks'; // Default mocha to Pink Drinks since there's no specific mocha category
   }
   if (lowerContent.includes('cheap') || lowerContent.includes('budget') || lowerContent.includes('under') || lowerContent.includes('$')) {
     return 'Budget Babe Brews';
   }
+  if (lowerContent.includes('viral') || lowerContent.includes('trending') || lowerContent.includes('tiktok') || lowerContent.includes('popular')) {
+    return 'Viral Today';
+  }
   
-  // Default to Pretty n Pink for aesthetic drinks
-  return 'Pretty n Pink';
+  // Default to Pink Drinks for aesthetic drinks
+  return 'Pink Drinks';
 }
 
 export function extractInstructions(content: string): string {
