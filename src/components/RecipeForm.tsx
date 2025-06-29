@@ -89,11 +89,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
     try {
       setIsSubmitting(true);
       
-      // Sanitize all string inputs before submission
+      // Create the correctly formatted database object
       const sanitizedData = {
-        ...data,
         name: sanitizeInput(data.name),
         description: sanitizeInput(data.description),
+        category: data.category,
         instructions: sanitizeInput(data.instructions),
         tags: data.tags.split(',').map(tag => sanitizeInput(tag.trim())).filter(tag => tag.length > 0),
         images,
