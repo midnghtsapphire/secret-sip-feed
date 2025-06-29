@@ -6,6 +6,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { useAdmin } from '@/hooks/useAdmin';
 import RecipeFormHeader from './recipe-form/RecipeFormHeader';
 import RecipeFormFields from './recipe-form/RecipeFormFields';
 import ImageUpload from './recipe-form/ImageUpload';
@@ -40,11 +41,7 @@ const formSchema = z.object({
     .refine((val) => validateRecipeInstructions(val).isValid, {
       message: 'Instructions contain invalid content'
     }),
-  tags: z.array(z.string())
-    .max(10, 'Maximum 10 tags allowed')
-    .refine((val) => validateRecipeTags(val).isValid, {
-      message: 'Tags contain invalid characters'
-    }),
+  tags: z.string(),
   isPublic: z.boolean().default(false),
 });
 
@@ -59,7 +56,9 @@ interface RecipeFormProps {
 const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData }) => {
   const [images, setImages] = useState<string[]>(initialData?.images || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSocialExtractor, setShowSocialExtractor] = useState(false);
   const { toast } = useToast();
+  const { isAdmin } = useAdmin();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -71,10 +70,20 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
       prepTimeMinutes: initialData?.prep_time_minutes || 5,
       difficultyLevel: initialData?.difficulty_level || 1,
       instructions: initialData?.instructions || '',
-      tags: initialData?.tags || [],
+      tags: initialData?.tags?.join(', ') || '',
       isPublic: initialData?.is_public || false,
     },
   });
+
+  const handleRecipeExtracted = (extractedRecipe: any) => {
+    if (extractedRecipe.name) form.setValue('name', extractedRecipe.name);
+    if (extractedRecipe.description) form.setValue('description', extractedRecipe.description);
+    if (extractedRecipe.category) form.setValue('category', extractedRecipe.category);
+    if (extractedRecipe.instructions) form.setValue('instructions', extractedRecipe.instructions);
+    if (extractedRecipe.tags) form.setValue('tags', extractedRecipe.tags.join(', '));
+    if (extractedRecipe.images) setImages(extractedRecipe.images);
+    setShowSocialExtractor(false);
+  };
 
   const handleSubmit = async (data: FormData) => {
     try {
@@ -86,8 +95,12 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
         name: sanitizeInput(data.name),
         description: sanitizeInput(data.description),
         instructions: sanitizeInput(data.instructions),
-        tags: data.tags.map(tag => sanitizeInput(tag)).filter(tag => tag.length > 0),
+        tags: data.tags.split(',').map(tag => sanitizeInput(tag.trim())).filter(tag => tag.length > 0),
         images,
+        base_price: data.basePrice,
+        prep_time_minutes: data.prepTimeMinutes,
+        difficulty_level: data.difficultyLevel,
+        is_public: data.isPublic,
       };
 
       // Additional validation
@@ -143,7 +156,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          <RecipeFormFields form={form} />
+          <RecipeFormFields 
+            form={form} 
+            categories={[]}
+            isAdmin={isAdmin}
+          />
           
           <ImageUpload
             images={images}
@@ -151,7 +168,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
             maxImages={5}
           />
 
-          <SocialImportSection />
+          <SocialImportSection 
+            showSocialExtractor={showSocialExtractor}
+            onToggleExtractor={setShowSocialExtractor}
+            onRecipeExtracted={handleRecipeExtracted}
+          />
 
           <div className="flex gap-4 pt-6">
             <Button 
