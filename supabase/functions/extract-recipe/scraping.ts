@@ -6,8 +6,8 @@ export interface ApifyRunOptions {
 }
 
 export const defaultApifyOptions: ApifyRunOptions = {
-  timeout: 30000,
-  maxAttempts: 30
+  timeout: 45000,
+  maxAttempts: 45
 };
 
 export interface ApifyRunInput {
@@ -27,6 +27,7 @@ export interface ApifyRunInput {
 
 export async function runApifyActor(actorId: string, runInput: ApifyRunInput, apiToken: string, options: ApifyRunOptions) {
   console.log('Starting Apify actor run with ID:', actorId);
+  console.log('Run input:', JSON.stringify(runInput, null, 2));
   
   // Start the Apify actor run
   const runResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs`, {
@@ -50,7 +51,7 @@ export async function runApifyActor(actorId: string, runInput: ApifyRunInput, ap
   const runId = runData.data.id;
   console.log('Apify run started with ID:', runId);
 
-  // Wait for completion
+  // Wait for completion with longer timeout
   let attempts = 0;
   let runStatus = 'RUNNING';
 
@@ -85,7 +86,6 @@ export async function runApifyActor(actorId: string, runInput: ApifyRunInput, ap
   });
 
   console.log('Results response status:', resultsResponse.status);
-  console.log('Results URL used:', `https://api.apify.com/v2/datasets/${runData.data.defaultDatasetId}/items`);
 
   if (!resultsResponse.ok) {
     const errorText = await resultsResponse.text();
@@ -102,7 +102,7 @@ export async function runApifyActor(actorId: string, runInput: ApifyRunInput, ap
 export function getActorIdForPlatform(url: string): { actorId: string; runInput: ApifyRunInput } {
   console.log('Determining actor for URL:', url);
   
-  if (url.includes('instagram')) {
+  if (url.includes('instagram.com')) {
     return {
       actorId: 'shu8hvrXbJbY3Eb9W', // Instagram Scraper
       runInput: {
@@ -111,7 +111,7 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
         resultsLimit: 1
       }
     };
-  } else if (url.includes('tiktok')) {
+  } else if (url.includes('tiktok.com')) {
     return {
       actorId: 'OtzYfK1ndEGdwWFKQ', // TikTok Scraper
       runInput: {
@@ -119,16 +119,17 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
         maxItems: 1
       }
     };
-  } else if (url.includes('lemon8')) {
-    // Try the TikTok scraper first as it might handle Lemon8 better
+  } else if (url.includes('lemon8') || url.includes('v.lemon8')) {
+    // Use TikTok scraper for Lemon8 as they're related platforms
     return {
-      actorId: 'OtzYfK1ndEGdwWFKQ', // TikTok Scraper - they're related platforms
+      actorId: 'OtzYfK1ndEGdwWFKQ', // TikTok Scraper
       runInput: {
         postURLs: [url],
         maxItems: 1
       }
     };
   } else {
+    // For other platforms, use web scraper
     return {
       actorId: 'aYG0l9s7dbB7j3gbS', // Website Content Crawler
       runInput: {
@@ -144,12 +145,12 @@ export function getActorIdForPlatform(url: string): { actorId: string; runInput:
 export function extractContentFromApifyResult(result: any, url: string): string {
   console.log('Extracting content from result for URL:', url);
   console.log('Result keys:', Object.keys(result));
-  console.log('Result content preview:', JSON.stringify(result, null, 2).slice(0, 500));
   
+  // Handle different result structures
   if (url.includes('instagram')) {
-    return result.caption || result.text || result.description || '';
+    return result.caption || result.text || result.description || result.content || '';
   } else if (url.includes('tiktok') || url.includes('lemon8')) {
-    return result.text || result.description || result.caption || '';
+    return result.text || result.description || result.caption || result.content || '';
   } else {
     return result.text || result.content || result.description || result.title || '';
   }
