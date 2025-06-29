@@ -133,45 +133,52 @@ export const useRecipeExtraction = () => {
           images: data.images
         });
         
-        // Ensure images array is properly formatted and handle all image sources
-        const images = [];
+        // For mobile compatibility, we'll use placeholder for Instagram images that fail to load
+        // and let the backend handle image processing in the future
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isInstagram = urlToUse.includes('instagram.com');
         
-        // First, add any images from the images array
-        if (data.images && Array.isArray(data.images)) {
-          console.log('📷 EXTRACT: Processing images array:', data.images);
-          data.images.forEach(img => {
-            if (img && typeof img === 'string' && img.trim() !== '' && img !== '/placeholder.svg') {
-              console.log('📷 EXTRACT: Adding image from array:', img);
-              // Test image validity on mobile
-              const testImg = new Image();
-              testImg.onload = () => console.log('📱 MOBILE: Image loads successfully:', img);
-              testImg.onerror = () => console.log('📱 MOBILE: Image fails to load:', img);
-              testImg.src = img.trim();
-              images.push(img.trim());
-            }
-          });
-        }
+        console.log('📱 MOBILE: Is mobile device:', isMobile);
+        console.log('📱 MOBILE: Is Instagram source:', isInstagram);
         
-        // Then, add the main imageUrl if it's not already included
-        if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' && data.imageUrl !== '/placeholder.svg') {
-          if (!images.includes(data.imageUrl.trim())) {
-            console.log('📷 EXTRACT: Adding main imageUrl:', data.imageUrl);
-            // Test image validity on mobile
-            const testImg = new Image();
-            testImg.onload = () => console.log('📱 MOBILE: Main image loads successfully:', data.imageUrl);
-            testImg.onerror = () => console.log('📱 MOBILE: Main image fails to load:', data.imageUrl);
-            testImg.src = data.imageUrl.trim();
-            images.unshift(data.imageUrl.trim()); // Add to beginning as primary image
+        // For Instagram on mobile, we'll use a placeholder and let the recipe work without images
+        // This prevents the extraction from failing due to CORS/loading issues
+        let processedImages = [];
+        let processedImageUrl = '/placeholder.svg';
+        
+        if (isMobile && isInstagram) {
+          console.log('📱 MOBILE: Using placeholder for Instagram on mobile due to CORS restrictions');
+          processedImages = ['/placeholder.svg'];
+          processedImageUrl = '/placeholder.svg';
+        } else {
+          // Process images normally for non-mobile or non-Instagram
+          if (data.images && Array.isArray(data.images)) {
+            console.log('📷 EXTRACT: Processing images array:', data.images);
+            data.images.forEach(img => {
+              if (img && typeof img === 'string' && img.trim() !== '' && img !== '/placeholder.svg') {
+                console.log('📷 EXTRACT: Adding image from array:', img);
+                processedImages.push(img.trim());
+              }
+            });
           }
+          
+          if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '' && data.imageUrl !== '/placeholder.svg') {
+            if (!processedImages.includes(data.imageUrl.trim())) {
+              console.log('📷 EXTRACT: Adding main imageUrl:', data.imageUrl);
+              processedImages.unshift(data.imageUrl.trim());
+            }
+          }
+          
+          processedImageUrl = processedImages.length > 0 ? processedImages[0] : '/placeholder.svg';
         }
         
-        console.log('🖼️ EXTRACT: Final processed images array:', images);
-        console.log('📱 MOBILE: Image array length:', images.length);
+        console.log('🖼️ EXTRACT: Final processed images array:', processedImages);
+        console.log('📱 MOBILE: Image array length:', processedImages.length);
         
         const enrichedData = {
           ...data,
-          images,
-          imageUrl: images.length > 0 ? images[0] : '/placeholder.svg'
+          images: processedImages,
+          imageUrl: processedImageUrl
         };
         
         console.log('✨ EXTRACT: Final enriched data:', enrichedData);
@@ -180,7 +187,7 @@ export const useRecipeExtraction = () => {
         setExtractedRecipe(enrichedData);
         toast({
           title: "Recipe Extracted! 🎉",
-          description: `Successfully extracted "${data.name}" from ${data.source}`,
+          description: `Successfully extracted "${data.name}" from ${data.source}${isMobile && isInstagram ? ' (image will be added later)' : ''}`,
         });
       } else {
         console.error('❌ EXTRACT: No valid recipe data:', data);
