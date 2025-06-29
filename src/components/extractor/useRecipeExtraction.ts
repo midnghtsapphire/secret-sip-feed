@@ -27,17 +27,22 @@ const createProxiedImageUrl = async (originalUrl: string): Promise<string> => {
   try {
     console.log('🔄 PROXY: Creating proxied URL for:', originalUrl);
     
-    const { data, error } = await supabase.functions.invoke('proxy-image', {
-      body: { imageUrl: originalUrl }
+    const response = await fetch(`https://cxxfpclyptwlzarlisnr.supabase.co/functions/v1/proxy-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabase.supabaseKey}`,
+      },
+      body: JSON.stringify({ imageUrl: originalUrl })
     });
 
-    if (error) {
-      console.error('❌ PROXY: Error creating proxied URL:', error);
+    if (!response.ok) {
+      console.error('❌ PROXY: Error response:', response.status, response.statusText);
       return originalUrl; // Fallback to original
     }
 
-    // Create a blob URL from the response
-    const blob = new Blob([data], { type: 'image/jpeg' });
+    // The response is the actual image data, so we create a blob URL from it
+    const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
     
     console.log('✅ PROXY: Created blob URL:', blobUrl);

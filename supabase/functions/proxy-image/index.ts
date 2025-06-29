@@ -35,6 +35,7 @@ serve(async (req) => {
         'Accept-Language': 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
+        'Referer': 'https://www.instagram.com/',
       }
     })
 
@@ -54,7 +55,7 @@ serve(async (req) => {
     
     console.log('✅ PROXY: Image fetched successfully, size:', imageBuffer.byteLength, 'bytes')
 
-    // Return the image with proper headers
+    // Return the image directly with proper headers
     return new Response(imageBuffer, {
       headers: {
         ...corsHeaders,
