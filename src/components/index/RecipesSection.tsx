@@ -19,22 +19,26 @@ const RecipesSection: React.FC<RecipesSectionProps> = ({
   isLoading,
   filteredRecipes
 }) => {
-  // Filter recipes created today
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Filter recipes created today with more inclusive date logic
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   
   const todaysRecipes = filteredRecipes.filter(recipe => {
-    const recipeDate = new Date(recipe.created_at || '');
-    recipeDate.setHours(0, 0, 0, 0);
-    return recipeDate.getTime() === today.getTime();
+    if (!recipe.created_at) return false;
+    const recipeDate = new Date(recipe.created_at);
+    return recipeDate >= startOfToday && recipeDate <= endOfToday;
   });
 
   // Filter out today's recipes from the main list to avoid duplicates
   const otherRecipes = filteredRecipes.filter(recipe => {
-    const recipeDate = new Date(recipe.created_at || '');
-    recipeDate.setHours(0, 0, 0, 0);
-    return recipeDate.getTime() !== today.getTime();
+    if (!recipe.created_at) return true;
+    const recipeDate = new Date(recipe.created_at);
+    return !(recipeDate >= startOfToday && recipeDate <= endOfToday);
   });
+
+  console.log('Today\'s recipes found:', todaysRecipes.length);
+  console.log('Other recipes:', otherRecipes.length);
 
   return (
     <>
