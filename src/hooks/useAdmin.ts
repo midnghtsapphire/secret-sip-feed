@@ -36,7 +36,12 @@ export const useAdmin = () => {
       }
     };
 
-    checkAdminStatus();
+    // Add a small delay to ensure auth context is fully initialized
+    const timeoutId = setTimeout(() => {
+      checkAdminStatus();
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
   }, [user]);
 
   return { isAdmin, loading };
