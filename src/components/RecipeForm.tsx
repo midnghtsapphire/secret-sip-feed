@@ -156,6 +156,12 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <SocialImportSection 
+            showSocialExtractor={showSocialExtractor}
+            onToggleExtractor={setShowSocialExtractor}
+            onRecipeExtracted={handleRecipeExtracted}
+          />
+
           <RecipeFormFields 
             form={form} 
             categories={[]}
@@ -166,12 +172,6 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
             images={images}
             onImagesChange={setImages}
             maxImages={5}
-          />
-
-          <SocialImportSection 
-            showSocialExtractor={showSocialExtractor}
-            onToggleExtractor={setShowSocialExtractor}
-            onRecipeExtracted={handleRecipeExtracted}
           />
 
           <div className="flex gap-4 pt-6">
