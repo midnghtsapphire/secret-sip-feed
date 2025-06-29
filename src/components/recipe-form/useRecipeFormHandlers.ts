@@ -22,7 +22,7 @@ const categoryMapping: Record<string, string> = {
   'Mad Matchas': 'Green Teas', 
   'Blues Clues': 'Blue Drinks',
   'Foam Frenzy': 'Foam Experts',
-  'Cold Drinks': 'Pink Drinks', // Default fallback
+  'Cold Drinks': 'Viral Today', // New recipes should go to Viral Today
   'Hot Drinks': 'Merry Mocha',
   'Iced Drinks': 'Blue Drinks'
 };
@@ -46,8 +46,8 @@ export const useRecipeFormHandlers = ({
       if (validCategories.includes(mappedCategory)) {
         form.setValue('category', mappedCategory);
       } else {
-        // Default to Pink Drinks if category is invalid
-        form.setValue('category', 'Pink Drinks');
+        // Default to Viral Today for new recipes
+        form.setValue('category', 'Viral Today');
       }
     }
     if (extractedRecipe.instructions) form.setValue('instructions', extractedRecipe.instructions);

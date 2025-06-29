@@ -29,26 +29,33 @@ interface SocialMediaExtractorProps {
 // Map extracted categories to valid database categories
 const mapCategoryToValid = (extractedCategory: string): string => {
   const categoryMap: { [key: string]: string } = {
-    'foam frenzy': 'Cold Drinks',
-    'hot drinks': 'Hot Drinks',
-    'cold drinks': 'Cold Drinks',
-    'blended': 'Blended',
-    'refreshers': 'Refreshers',
-    'tea': 'Tea',
-    'coffee': 'Hot Drinks',
-    'frappuccino': 'Blended',
-    'smoothie': 'Blended',
-    'latte': 'Hot Drinks',
-    'cappuccino': 'Hot Drinks',
-    'espresso': 'Hot Drinks',
-    'macchiato': 'Hot Drinks',
-    'mocha': 'Hot Drinks',
-    'americano': 'Hot Drinks',
-    'refresher': 'Refreshers',
-    'iced': 'Cold Drinks',
-    'frozen': 'Blended',
-    'shake': 'Blended',
-    'juice': 'Cold Drinks'
+    'cold drinks': 'Pink Drinks',
+    'hot drinks': 'Merry Mocha',
+    'foam frenzy': 'Foam Experts',
+    'blended': 'Blue Drinks',
+    'refreshers': 'Green Teas',
+    'tea': 'Green Teas',
+    'coffee': 'Merry Mocha',
+    'frappuccino': 'Blue Drinks',
+    'smoothie': 'Pink Drinks',
+    'latte': 'Merry Mocha',
+    'cappuccino': 'Merry Mocha',
+    'espresso': 'Expresso',
+    'macchiato': 'Merry Mocha',
+    'mocha': 'Merry Mocha',
+    'americano': 'Expresso',
+    'refresher': 'Green Teas',
+    'iced': 'Pink Drinks',
+    'frozen': 'Blue Drinks',
+    'shake': 'Pink Drinks',
+    'juice': 'Pink Drinks',
+    'pink': 'Pink Drinks',
+    'blue': 'Blue Drinks',
+    'green': 'Green Teas',
+    'matcha': 'Green Teas',
+    'strawberry': 'Pink Drinks',
+    'caramel': 'Caramel Dreams',
+    'chocolate': 'Merry Mocha'
   };
 
   const lowerExtracted = extractedCategory.toLowerCase();
@@ -65,8 +72,8 @@ const mapCategoryToValid = (extractedCategory: string): string => {
     }
   }
   
-  // Default fallback
-  return 'Cold Drinks';
+  // Default fallback to Viral Today for new recipes
+  return 'Viral Today';
 };
 
 const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExtracted }) => {
@@ -83,11 +90,28 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
 
   const handleUseRecipe = () => {
     if (extractedRecipe) {
-      // Map the category to a valid one before passing to parent
+      // Validate and clean up the recipe data before passing to parent
+      let recipeName = extractedRecipe.name;
+      
+      // Fix numeric-only names from Instagram extraction
+      if (/^\d+$/.test(recipeName)) {
+        recipeName = `Instagram Recipe ${recipeName}`;
+      }
+      
+      // Ensure we have a meaningful description
+      let description = extractedRecipe.description || '';
+      if (!description && extractedRecipe.instructions) {
+        description = extractedRecipe.instructions.substring(0, 200) + '...';
+      }
+      
       const mappedRecipe = {
         ...extractedRecipe,
+        name: recipeName,
+        description: description,
         category: mapCategoryToValid(extractedRecipe.category)
       };
+      
+      console.log('Mapped recipe data:', mappedRecipe);
       
       onRecipeExtracted(mappedRecipe);
       setExtractedRecipe(null);
@@ -112,6 +136,7 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
         <RecipePreview
           recipe={{
             ...extractedRecipe,
+            name: /^\d+$/.test(extractedRecipe.name) ? `Instagram Recipe ${extractedRecipe.name}` : extractedRecipe.name,
             category: mapCategoryToValid(extractedRecipe.category)
           }}
           onUseRecipe={handleUseRecipe}
