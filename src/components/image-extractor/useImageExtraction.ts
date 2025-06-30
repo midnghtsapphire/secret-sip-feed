@@ -85,10 +85,11 @@ export const useImageExtraction = () => {
 
         toast({
           title: "Recipe extracted successfully! 🎉",
-          description: `Found recipe: "${data.recipe.name}"`,
+          description: `Found recipe: "${data.recipe.name}" - Image preserved for recipe creation`,
         });
 
-        clearImage();
+        // Don't clear the image here - let the parent component handle it
+        // clearImage();
       } else {
         throw new Error('No recipe data found in response');
       }

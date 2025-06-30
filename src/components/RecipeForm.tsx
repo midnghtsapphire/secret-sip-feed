@@ -42,7 +42,16 @@ const RecipeForm: React.FC<RecipeFormProps> = ({ onSubmit, onCancel, initialData
   });
 
   const handleRecipeExtractedWithImages = (extractedRecipe: any) => {
-    if (extractedRecipe.images) setImages(extractedRecipe.images);
+    // If the extracted recipe has an imageUrl, add it to images
+    if (extractedRecipe.imageUrl) {
+      setImages([extractedRecipe.imageUrl]);
+    }
+    
+    // If the extracted recipe has images array, use it
+    if (extractedRecipe.images && Array.isArray(extractedRecipe.images)) {
+      setImages(extractedRecipe.images);
+    }
+    
     handleRecipeExtracted(extractedRecipe);
     setShowSocialExtractor(false);
   };

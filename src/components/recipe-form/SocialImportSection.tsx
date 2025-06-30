@@ -17,6 +17,12 @@ const SocialImportSection: React.FC<SocialImportSectionProps> = ({
   onToggleExtractor,
   onRecipeExtracted
 }) => {
+  const handleRecipeExtracted = (recipe: any) => {
+    // Call the parent handler and then close the extractor to show the manual form
+    onRecipeExtracted(recipe);
+    onToggleExtractor(false);
+  };
+
   return (
     <Card className="p-6 bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
       <div className="flex items-center justify-between mb-4">
@@ -49,10 +55,10 @@ const SocialImportSection: React.FC<SocialImportSectionProps> = ({
           </div>
 
           {/* Social Media Extractor */}
-          <SocialMediaExtractor onRecipeExtracted={onRecipeExtracted} />
+          <SocialMediaExtractor onRecipeExtracted={handleRecipeExtracted} />
 
           {/* Image Recipe Extractor */}
-          <ImageRecipeExtractor onRecipeExtracted={onRecipeExtracted} />
+          <ImageRecipeExtractor onRecipeExtracted={handleRecipeExtracted} />
         </div>
       )}
     </Card>
