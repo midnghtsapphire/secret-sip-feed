@@ -30,7 +30,11 @@ const ManualFormSection: React.FC<ManualFormSectionProps> = ({
 }) => {
   // Check if form has minimum required fields filled
   const formValues = form.watch();
-  const hasRequiredFields = formValues.name && formValues.name.trim().length >= 2 && formValues.category;
+  console.log('Form values:', formValues);
+  
+  const hasRequiredFields = !!(formValues.name && formValues.name.trim().length >= 2 && formValues.category);
+  console.log('Has required fields:', hasRequiredFields);
+  console.log('Name:', formValues.name, 'Category:', formValues.category);
   
   return (
     <div className="border-t pt-6">
