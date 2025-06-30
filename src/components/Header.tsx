@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Heart, User, ArrowRight } from 'lucide-react';
+import { Heart, User, ArrowRight, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Header = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   return (
     <header className="bg-white/80 backdrop-blur-sm border-b border-pink-100 sticky top-0 z-50">
@@ -37,13 +37,23 @@ const Header = () => {
             </Link>
             
             {user ? (
-              <Link
-                to="/recipes"  
-                className="flex items-center space-x-2 text-gray-600 hover:text-purple-500 transition-colors"
-              >
-                <User size={20} />
-                <span className="hidden sm:inline">My Recipes</span>
-              </Link>
+              <>
+                <Link
+                  to="/recipes"  
+                  className="flex items-center space-x-2 text-gray-600 hover:text-purple-500 transition-colors"
+                >
+                  <User size={20} />
+                  <span className="hidden sm:inline">My Recipes</span>
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut size={20} />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </>
             ) : (
               <Link
                 to="/auth"
