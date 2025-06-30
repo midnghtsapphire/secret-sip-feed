@@ -28,13 +28,20 @@ const ManualFormSection: React.FC<ManualFormSectionProps> = ({
   isAdmin,
   initialData
 }) => {
-  // Check if form has minimum required fields filled
-  const formValues = form.watch();
-  console.log('Form values:', formValues);
+  // Watch specific fields to ensure proper reactivity
+  const nameValue = form.watch('name');
+  const categoryValue = form.watch('category');
   
-  const hasRequiredFields = !!(formValues.name && formValues.name.trim().length >= 2 && formValues.category);
-  console.log('Has required fields:', hasRequiredFields);
-  console.log('Name:', formValues.name, 'Category:', formValues.category);
+  // Simplified validation - just check if name exists and has minimum length, and category is selected
+  const isFormValid = nameValue && nameValue.trim().length >= 2 && categoryValue && categoryValue.trim().length > 0;
+  
+  console.log('🔍 Form validation check:', {
+    nameValue,
+    categoryValue,
+    isFormValid,
+    nameLength: nameValue?.length || 0,
+    isSubmitting
+  });
   
   return (
     <div className="border-t pt-6">
@@ -60,12 +67,13 @@ const ManualFormSection: React.FC<ManualFormSectionProps> = ({
               variant="outline" 
               onClick={onCancel}
               disabled={isSubmitting}
+              className="hover:bg-gray-50"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
-              disabled={isSubmitting || !hasRequiredFields}
+              disabled={isSubmitting || !isFormValid}
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
