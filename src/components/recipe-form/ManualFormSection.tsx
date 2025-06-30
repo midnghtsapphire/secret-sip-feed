@@ -42,13 +42,24 @@ const ManualFormSection: React.FC<ManualFormSectionProps> = ({
     nameLength: nameValue?.length || 0,
     isSubmitting
   });
+
+  const handleCancelClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log('📛 Cancel button clicked');
+    onCancel();
+  };
+
+  const handleFormSubmit = (data: FormData) => {
+    console.log('📝 Form submitted with data:', data);
+    onSubmit(data);
+  };
   
   return (
     <div className="border-t pt-6">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Or Enter Recipe Details Manually</h3>
       
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
           <RecipeFormFields 
             form={form} 
             categories={[]}
@@ -65,16 +76,16 @@ const ManualFormSection: React.FC<ManualFormSectionProps> = ({
             <Button 
               type="button" 
               variant="outline" 
-              onClick={onCancel}
+              onClick={handleCancelClick}
               disabled={isSubmitting}
-              className="hover:bg-gray-50"
+              className="hover:bg-gray-50 cursor-pointer"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={isSubmitting || !isFormValid}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
             </Button>
