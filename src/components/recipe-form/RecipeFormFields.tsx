@@ -13,9 +13,22 @@ interface RecipeFormFieldsProps {
 }
 
 const RecipeFormFields: React.FC<RecipeFormFieldsProps> = ({ form, categories, isAdmin }) => {
+  // Provide default categories if none are passed
+  const validCategories = categories.length > 0 ? categories : [
+    'Pink Drinks',
+    'Blue Drinks', 
+    'Green Teas',
+    'Foam Experts',
+    'Budget Babe Brews',
+    'Viral Today',
+    'Caramel Dreams',
+    'Merry Mocha',
+    'Expresso'
+  ];
+
   return (
     <>
-      <BasicRecipeFields form={form} categories={categories} />
+      <BasicRecipeFields form={form} categories={validCategories} />
       
       <RecipeImageField form={form} />
 

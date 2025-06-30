@@ -28,6 +28,10 @@ const ManualFormSection: React.FC<ManualFormSectionProps> = ({
   isAdmin,
   initialData
 }) => {
+  // Check if form has minimum required fields filled
+  const formValues = form.watch();
+  const hasRequiredFields = formValues.name && formValues.name.trim().length >= 2 && formValues.category;
+  
   return (
     <div className="border-t pt-6">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Or Enter Recipe Details Manually</h3>
@@ -57,8 +61,8 @@ const ManualFormSection: React.FC<ManualFormSectionProps> = ({
             </Button>
             <Button 
               type="submit" 
-              disabled={isSubmitting}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+              disabled={isSubmitting || !hasRequiredFields}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
             </Button>
