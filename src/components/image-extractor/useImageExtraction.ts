@@ -59,7 +59,8 @@ export const useImageExtraction = () => {
 
       if (error) {
         console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Failed to call extraction function');
+        const errorMessage = typeof error === 'string' ? error : error.message || 'Failed to call extraction function';
+        throw new Error(errorMessage);
       }
 
       if (data?.error) {
@@ -93,7 +94,18 @@ export const useImageExtraction = () => {
       }
     } catch (error) {
       console.error('Error extracting recipe from image:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        // Handle cases where error might be an object with a message property
+        errorMessage = (error as any).message || (error as any).error || 'Unknown error occurred';
+      }
+      
       setExtractionError(errorMessage);
       
       toast({
