@@ -1,8 +1,10 @@
 
 import React from 'react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link as LinkIcon } from 'lucide-react';
+import { Link, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import SocialMediaExtractor from '../SocialMediaExtractor';
+import ImageRecipeExtractor from '../ImageRecipeExtractor';
 
 interface SocialImportSectionProps {
   showSocialExtractor: boolean;
@@ -15,40 +17,45 @@ const SocialImportSection: React.FC<SocialImportSectionProps> = ({
   onToggleExtractor,
   onRecipeExtracted
 }) => {
-  if (!showSocialExtractor) {
-    return (
-      <div className="mb-6 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-gray-800">Import from Social Media</h3>
-            <p className="text-sm text-gray-600">Extract recipe data from TikTok, Instagram, or Lemon8 posts</p>
-          </div>
-          <Button
-            type="button"
-            onClick={() => onToggleExtractor(true)}
-            variant="outline"
-            className="border-pink-300 text-pink-600 hover:bg-pink-50"
-          >
-            <LinkIcon size={16} className="mr-2" />
-            Import
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mb-6">
-      <SocialMediaExtractor onRecipeExtracted={onRecipeExtracted} />
-      <Button
-        type="button"
-        onClick={() => onToggleExtractor(false)}
-        variant="outline"
-        className="mt-4 w-full"
-      >
-        Manual Entry Instead
-      </Button>
-    </div>
+    <Card className="p-6 bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+          <Link className="w-5 h-5 text-pink-500" />
+          Import Recipe
+        </h2>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => onToggleExtractor(!showSocialExtractor)}
+          className="text-gray-600 hover:text-gray-800"
+        >
+          {showSocialExtractor ? (
+            <>
+              Hide <ChevronUp className="w-4 h-4 ml-1" />
+            </>
+          ) : (
+            <>
+              Show Options <ChevronDown className="w-4 h-4 ml-1" />
+            </>
+          )}
+        </Button>
+      </div>
+
+      {showSocialExtractor && (
+        <div className="space-y-6">
+          <div className="text-sm text-gray-600 mb-4">
+            Quickly import recipes from social media or extract from cup images
+          </div>
+
+          {/* Social Media Extractor */}
+          <SocialMediaExtractor onRecipeExtracted={onRecipeExtracted} />
+
+          {/* Image Recipe Extractor */}
+          <ImageRecipeExtractor onRecipeExtracted={onRecipeExtracted} />
+        </div>
+      )}
+    </Card>
   );
 };
 
