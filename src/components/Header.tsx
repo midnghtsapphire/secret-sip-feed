@@ -7,6 +7,12 @@ import { useAuth } from '@/contexts/AuthContext';
 const Header = () => {
   const { user, signOut } = useAuth();
 
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log('Sign out button clicked');
+    await signOut();
+  };
+
   return (
     <header className="bg-white/80 backdrop-blur-sm border-b border-pink-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
@@ -46,9 +52,10 @@ const Header = () => {
                   <span className="hidden sm:inline">My Recipes</span>
                 </Link>
                 <button
-                  onClick={signOut}
-                  className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors"
+                  onClick={handleSignOut}
+                  className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors cursor-pointer"
                   title="Sign Out"
+                  type="button"
                 >
                   <LogOut size={20} />
                   <span className="hidden sm:inline">Sign Out</span>
