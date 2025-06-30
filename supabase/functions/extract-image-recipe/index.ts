@@ -16,6 +16,7 @@ serve(async (req) => {
     const { image } = await req.json();
     
     if (!image) {
+      console.error('No image provided in request');
       return new Response(
         JSON.stringify({ error: 'Image is required' }),
         { 
@@ -27,9 +28,9 @@ serve(async (req) => {
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
-      console.error('OpenAI API key not found');
+      console.error('OpenAI API key not found in environment variables');
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        JSON.stringify({ error: 'OpenAI API key not configured. Please set OPENAI_API_KEY in Supabase Edge Function Secrets.' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500 
@@ -37,7 +38,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Analyzing image for recipe extraction...');
+    console.log('Starting image analysis for recipe extraction...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -50,51 +51,65 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a Starbucks recipe extraction expert. Analyze images of drink cups and extract recipe information. Look for:
-            1. Drink names written on cups or labels
-            2. Ingredient lists or modifications
-            3. Size information
-            4. Any recipe instructions visible
-            5. Flavor combinations or customizations
+            content: `You are an expert at reading drink recipes from images. Analyze the image carefully and extract ANY visible recipe information. Look for:
+            
+            1. Drink names (on cups, labels, screens, or text anywhere in the image)
+            2. Ingredient lists, modifications, or add-ons
+            3. Size information (Tall, Grande, Venti)
+            4. Recipe instructions or customizations
+            5. Toppings or special preparations
+            6. ANY text that describes how to make the drink
+            
+            Be very thorough - read ALL text in the image, including:
+            - Text on cups or containers
+            - Menu displays or screens
+            - Written instructions or notes
+            - Labels or stickers
+            - Any overlay text or captions
             
             Return ONLY a JSON object with this exact structure:
             {
-              "name": "drink name (required)",
-              "description": "brief description of the drink",
-              "category": "one of: Pink Drinks, Blue Drinks, Green Teas, Foam Experts, Budget Babe Brews, Viral Today, Caramel Dreams, Merry Mocha, Expresso",
-              "instructions": "step by step instructions if visible",
-              "tags": ["tag1", "tag2"],
-              "ingredients": ["ingredient1", "ingredient2"]
+              "name": "extracted drink name",
+              "description": "detailed description of the drink and customizations",
+              "category": "Green Teas",
+              "instructions": "step by step instructions based on visible information",
+              "tags": ["relevant", "tags"],
+              "ingredients": ["base drink", "modifications", "toppings"]
             }
             
-            If you cannot clearly identify a drink recipe, return {"error": "No clear recipe information found in image"}`
+            If you can see ANY recipe-related text or drink information, extract it. If absolutely no drink information is visible, return {"error": "No recipe information found in image"}`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Please extract the recipe information from this drink cup image:'
+                text: 'Please carefully analyze this image and extract all visible recipe information. Look at all text, labels, and any drink-related details:'
               },
               {
                 type: 'image_url',
                 image_url: {
-                  url: image
+                  url: image,
+                  detail: "high"
                 }
               }
             ]
           }
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.1
       }),
     });
 
+    console.log('OpenAI API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
+      console.error('OpenAI API error response:', errorText);
       return new Response(
-        JSON.stringify({ error: 'Failed to analyze image' }),
+        JSON.stringify({ 
+          error: `OpenAI API error (${response.status}): ${errorText}` 
+        }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500 
@@ -103,14 +118,26 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    const content = data.choices?.[0]?.message?.content;
     
-    console.log('OpenAI response:', content);
+    if (!content) {
+      console.error('No content in OpenAI response:', data);
+      return new Response(
+        JSON.stringify({ error: 'No response content from AI analysis' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500 
+        }
+      );
+    }
+
+    console.log('OpenAI response content:', content);
 
     try {
       const extractedRecipe = JSON.parse(content);
       
       if (extractedRecipe.error) {
+        console.log('AI could not find recipe information:', extractedRecipe.error);
         return new Response(
           JSON.stringify({ error: extractedRecipe.error }),
           { 
@@ -121,7 +148,8 @@ serve(async (req) => {
       }
 
       // Validate required fields
-      if (!extractedRecipe.name || extractedRecipe.name.length < 3) {
+      if (!extractedRecipe.name || extractedRecipe.name.length < 2) {
+        console.error('Extracted recipe missing valid name:', extractedRecipe);
         return new Response(
           JSON.stringify({ error: 'Could not extract a valid recipe name from the image' }),
           { 
@@ -145,6 +173,14 @@ serve(async (req) => {
         extractedRecipe.ingredients = [];
       }
 
+      // Add default values if missing
+      if (!extractedRecipe.description) {
+        extractedRecipe.description = `A delicious ${extractedRecipe.name} recipe`;
+      }
+      if (!extractedRecipe.instructions) {
+        extractedRecipe.instructions = 'Follow the standard preparation method for this drink.';
+      }
+
       console.log('Successfully extracted recipe:', extractedRecipe);
 
       return new Response(
@@ -157,8 +193,9 @@ serve(async (req) => {
 
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError);
+      console.error('Raw response content:', content);
       return new Response(
-        JSON.stringify({ error: 'Failed to parse recipe information from image' }),
+        JSON.stringify({ error: 'Failed to parse recipe information from image analysis' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500 
@@ -169,7 +206,9 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in extract-image-recipe function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: `Internal server error: ${error.message}` 
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 

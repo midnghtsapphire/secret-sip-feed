@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Upload, Camera, X, Loader2 } from 'lucide-react';
+import { Upload, Camera, X, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,6 +23,7 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -36,6 +37,9 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
       return;
     }
 
+    // Clear any previous errors
+    setExtractionError('');
+    
     setSelectedImage(file);
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -64,18 +68,34 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
     if (!selectedImage) return;
 
     setIsExtracting(true);
+    setExtractionError('');
+    
     try {
       const base64Image = await convertToBase64(selectedImage);
       
-      console.log('Extracting recipe from image...');
+      console.log('Starting recipe extraction from image...');
       
       const { data, error } = await supabase.functions.invoke('extract-image-recipe', {
         body: { image: base64Image }
       });
 
+      console.log('Supabase function response:', { data, error });
+
       if (error) {
-        console.error('Error extracting recipe:', error);
-        throw error;
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to call extraction function');
+      }
+
+      if (data?.error) {
+        console.error('Extraction function returned error:', data.error);
+        setExtractionError(data.error);
+        
+        toast({
+          title: "Extraction failed",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
       }
 
       if (data?.recipe) {
@@ -95,14 +115,20 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
         // Reset the form
         setSelectedImage(null);
         setImagePreview('');
+        setExtractionError('');
       } else {
         throw new Error('No recipe data found in response');
       }
     } catch (error) {
       console.error('Error extracting recipe from image:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setExtractionError(errorMessage);
+      
       toast({
         title: "Extraction failed",
-        description: "Could not extract recipe from image. Please try a clearer image or check if there's readable text on the cup.",
+        description: errorMessage.includes('OpenAI API key') 
+          ? "OpenAI API key not configured. Please contact support."
+          : "Could not extract recipe from image. Please try a clearer image with visible text.",
         variant: "destructive",
       });
     } finally {
@@ -113,6 +139,7 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
   const clearImage = () => {
     setSelectedImage(null);
     setImagePreview('');
+    setExtractionError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -133,7 +160,7 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
               Upload an image of a drink cup with recipe information
             </p>
             <p className="text-sm text-gray-500 mb-4">
-              Works best with clear images showing recipe names, ingredients, or instructions on cups
+              Works with images showing recipe names, ingredients, instructions, or menu details
             </p>
             
             <input
@@ -168,6 +195,18 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {extractionError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-red-800">Extraction Error</h4>
+                    <p className="text-sm text-red-700 mt-1">{extractionError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="flex gap-2">
               <Button
@@ -178,7 +217,7 @@ const ImageRecipeExtractor: React.FC<ImageRecipeExtractorProps> = ({ onRecipeExt
                 {isExtracting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Extracting Recipe...
+                    Analyzing Image...
                   </>
                 ) : (
                   <>
