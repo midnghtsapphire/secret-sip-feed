@@ -58,6 +58,9 @@ export const useRecipeFormHandlers = ({
     try {
       setIsSubmitting(true);
       
+      console.log('Form submission - Images array:', images);
+      console.log('Form submission - Form data:', data);
+      
       // Create the correctly formatted database object
       const sanitizedData = {
         name: sanitizeInput(data.name),
@@ -65,12 +68,14 @@ export const useRecipeFormHandlers = ({
         category: data.category,
         instructions: sanitizeInput(data.instructions),
         tags: data.tags.split(',').map(tag => sanitizeInput(tag.trim())).filter(tag => tag.length > 0),
-        images,
+        images: images || [], // Ensure images array is included
         base_price: data.basePrice,
         prep_time_minutes: data.prepTimeMinutes,
         difficulty_level: data.difficultyLevel,
         is_public: data.isPublic,
       };
+
+      console.log('Sanitized data being submitted:', sanitizedData);
 
       // Additional validation
       const nameValidation = validateRecipeName(sanitizedData.name);

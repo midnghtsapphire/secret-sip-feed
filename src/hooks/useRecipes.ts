@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +42,7 @@ export const useRecipes = () => {
       if (!user) throw new Error('Must be logged in');
 
       console.log('Creating recipe with data:', recipe);
+      console.log('Recipe images being sent to database:', recipe.images);
 
       const { data, error } = await supabase
         .from('recipes')
@@ -48,7 +50,12 @@ export const useRecipes = () => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
+      }
+      
+      console.log('Recipe created successfully with images:', data.images);
       return data;
     },
     onSuccess: () => {
@@ -59,6 +66,7 @@ export const useRecipes = () => {
       });
     },
     onError: (error) => {
+      console.error('Recipe creation error:', error);
       toast({
         title: "Error creating recipe",
         description: error.message,
@@ -69,6 +77,9 @@ export const useRecipes = () => {
 
   const updateRecipe = useMutation({
     mutationFn: async ({ id, ...updates }: RecipeUpdate & { id: string }) => {
+      console.log('Updating recipe with data:', updates);
+      console.log('Recipe images being updated:', updates.images);
+      
       const { data, error } = await supabase
         .from('recipes')
         .update(updates)
@@ -76,7 +87,12 @@ export const useRecipes = () => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database update error:', error);
+        throw error;
+      }
+      
+      console.log('Recipe updated successfully with images:', data.images);
       return data;
     },
     onSuccess: () => {
@@ -87,6 +103,7 @@ export const useRecipes = () => {
       });
     },
     onError: (error) => {
+      console.error('Recipe update error:', error);
       toast({
         title: "Error updating recipe",
         description: error.message,
