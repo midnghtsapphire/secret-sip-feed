@@ -96,7 +96,7 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
       
       // Fix numeric-only names from Instagram extraction
       if (/^\d+$/.test(recipeName)) {
-        recipeName = `Instagram Recipe ${recipeName}`;
+        recipeName = `${extractedRecipe.source} Recipe ${recipeName}`;
       }
       
       // Ensure we have a meaningful description
@@ -143,7 +143,7 @@ const SocialMediaExtractor: React.FC<SocialMediaExtractorProps> = ({ onRecipeExt
         <RecipePreview
           recipe={{
             ...extractedRecipe,
-            name: /^\d+$/.test(extractedRecipe.name) ? `Instagram Recipe ${extractedRecipe.name}` : extractedRecipe.name,
+            name: /^\d+$/.test(extractedRecipe.name) ? `${extractedRecipe.source} Recipe ${extractedRecipe.name}` : extractedRecipe.name,
             category: mapCategoryToValid(extractedRecipe.category)
           }}
           onUseRecipe={handleUseRecipe}
