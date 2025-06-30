@@ -36,6 +36,7 @@ export const useRecipeFormHandlers = ({
   const { toast } = useToast();
 
   const handleRecipeExtracted = (extractedRecipe: any) => {
+    console.log('Recipe extracted, updating form:', extractedRecipe);
     if (extractedRecipe.name) form.setValue('name', extractedRecipe.name);
     if (extractedRecipe.description) form.setValue('description', extractedRecipe.description);
     if (extractedRecipe.category) {
@@ -55,11 +56,11 @@ export const useRecipeFormHandlers = ({
   };
 
   const handleSubmit = async (data: FormData) => {
+    console.log('🚀 Form submission started with data:', data);
+    console.log('🚀 Images array:', images);
+    
     try {
       setIsSubmitting(true);
-      
-      console.log('Form submission - Images array:', images);
-      console.log('Form submission - Form data:', data);
       
       // Create the correctly formatted database object
       const sanitizedData = {
@@ -75,11 +76,12 @@ export const useRecipeFormHandlers = ({
         is_public: data.isPublic,
       };
 
-      console.log('Sanitized data being submitted:', sanitizedData);
+      console.log('🚀 Sanitized data being submitted:', sanitizedData);
 
       // Additional validation
       const nameValidation = validateRecipeName(sanitizedData.name);
       if (!nameValidation.isValid) {
+        console.error('❌ Name validation failed:', nameValidation.error);
         toast({
           title: "Validation Error",
           description: nameValidation.error,
@@ -90,6 +92,7 @@ export const useRecipeFormHandlers = ({
 
       const descValidation = validateRecipeDescription(sanitizedData.description);
       if (!descValidation.isValid) {
+        console.error('❌ Description validation failed:', descValidation.error);
         toast({
           title: "Validation Error", 
           description: descValidation.error,
@@ -100,6 +103,7 @@ export const useRecipeFormHandlers = ({
 
       const tagsValidation = validateRecipeTags(sanitizedData.tags);
       if (!tagsValidation.isValid) {
+        console.error('❌ Tags validation failed:', tagsValidation.error);
         toast({
           title: "Validation Error",
           description: tagsValidation.error,
@@ -108,16 +112,20 @@ export const useRecipeFormHandlers = ({
         return;
       }
 
+      console.log('✅ All validations passed, calling onSubmit...');
       await onSubmit(sanitizedData);
+      console.log('✅ onSubmit completed successfully');
+      
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('❌ Form submission error:', error);
       toast({
         title: "Error",
-        description: "Failed to save recipe. Please try again.",
+        description: `Failed to save recipe: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
+      console.log('🏁 Form submission process completed');
     }
   };
 

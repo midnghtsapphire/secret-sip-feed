@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmin } from '@/hooks/useAdmin';
@@ -15,7 +14,10 @@ export const useRecipeManager = () => {
   const { toast } = useToast();
 
   const handleCreateRecipe = async (recipeData: any) => {
+    console.log('🎯 handleCreateRecipe called with:', recipeData);
+    
     if (!user) {
+      console.error('❌ No user found for recipe creation');
       toast({
         title: "Authentication required",
         description: "Please sign in to create recipes",
@@ -25,13 +27,26 @@ export const useRecipeManager = () => {
     }
 
     try {
+      console.log('🚀 Calling createRecipe mutation...');
       await createRecipe.mutateAsync(recipeData);
+      console.log('✅ Recipe created successfully');
       setShowRecipeForm(false);
+      
+      toast({
+        title: "Success!",
+        description: "Recipe created successfully",
+      });
     } catch (error) {
-      console.error('Failed to create recipe:', error);
+      console.error('❌ Failed to create recipe:', error);
+      
+      let errorMessage = 'Please try again later';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error creating recipe",
-        description: "Please try again later",
+        description: errorMessage,
         variant: "destructive",
       });
     }
