@@ -67,7 +67,7 @@ serve(async (req) => {
             - Labels or stickers
             - Any overlay text or captions
             
-            Return ONLY a JSON object with this exact structure:
+            Return ONLY a valid JSON object with this exact structure (no markdown formatting):
             {
               "name": "extracted drink name",
               "description": "detailed description of the drink and customizations",
@@ -77,7 +77,9 @@ serve(async (req) => {
               "ingredients": ["base drink", "modifications", "toppings"]
             }
             
-            If you can see ANY recipe-related text or drink information, extract it. If absolutely no drink information is visible, return {"error": "No recipe information found in image"}`
+            If you can see ANY recipe-related text or drink information, extract it. If absolutely no drink information is visible, return {"error": "No recipe information found in image"}
+            
+            IMPORTANT: Return only pure JSON, no markdown code blocks or formatting.`
           },
           {
             role: 'user',
@@ -134,7 +136,19 @@ serve(async (req) => {
     console.log('OpenAI response content:', content);
 
     try {
-      const extractedRecipe = JSON.parse(content);
+      // Clean the response by removing markdown code blocks if present
+      let cleanedContent = content.trim();
+      
+      // Remove markdown code blocks (```json ... ```)
+      if (cleanedContent.startsWith('```json')) {
+        cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedContent.startsWith('```')) {
+        cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      console.log('Cleaned content for parsing:', cleanedContent);
+      
+      const extractedRecipe = JSON.parse(cleanedContent);
       
       if (extractedRecipe.error) {
         console.log('AI could not find recipe information:', extractedRecipe.error);
