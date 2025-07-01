@@ -53,12 +53,12 @@ export function convertMobileToDesktopUrl(url: string): UrlConversionResult {
       }
     }
     
-    // Lemon8 conversions - keep original mobile URLs as they work better
+    // Lemon8 conversions - keep v.lemon8-app.com links as they work better for extraction
     else if (hostname.includes('lemon8')) {
       platform = 'Lemon8';
       
-      // For Lemon8, DON'T convert v.lemon8-app.com as the mobile version works better
-      // Only clean up unnecessary parameters
+      // Keep v.lemon8-app.com links unchanged as they work better for extraction
+      // Only clean up unnecessary parameters if they exist
       if (convertedUrl.includes('?mobile=1') || convertedUrl.includes('&mobile=1')) {
         convertedUrl = convertedUrl.replace(/[?&]mobile=1/g, '');
         wasConverted = true;
