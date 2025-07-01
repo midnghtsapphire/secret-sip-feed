@@ -1,4 +1,3 @@
-
 // URL conversion utilities for mobile to desktop links
 export interface UrlConversionResult {
   originalUrl: string;
@@ -54,18 +53,14 @@ export function convertMobileToDesktopUrl(url: string): UrlConversionResult {
       }
     }
     
-    // Lemon8 conversions
+    // Lemon8 conversions - keep original mobile URLs as they work better
     else if (hostname.includes('lemon8')) {
       platform = 'Lemon8';
       
-      // Convert v.lemon8-app.com to www.lemon8-app.com
-      if (hostname.includes('v.lemon8-app.com')) {
-        convertedUrl = originalUrl.replace('v.lemon8-app.com', 'www.lemon8-app.com');
-        wasConverted = true;
-      }
-      // Convert mobile app links to web version
-      else if (hostname.includes('lemon8-app.com') && !hostname.includes('www.')) {
-        convertedUrl = originalUrl.replace(hostname, 'www.lemon8-app.com');
+      // For Lemon8, DON'T convert v.lemon8-app.com as the mobile version works better
+      // Only clean up unnecessary parameters
+      if (convertedUrl.includes('?mobile=1') || convertedUrl.includes('&mobile=1')) {
+        convertedUrl = convertedUrl.replace(/[?&]mobile=1/g, '');
         wasConverted = true;
       }
     }
@@ -102,12 +97,14 @@ export function convertMobileToDesktopUrl(url: string): UrlConversionResult {
       }
     }
     
-    // Clean up any remaining mobile parameters
-    const mobileParams = ['?mobile=1', '&mobile=1', '?m=1', '&m=1'];
-    for (const param of mobileParams) {
-      if (convertedUrl.includes(param)) {
-        convertedUrl = convertedUrl.replace(param, '');
-        wasConverted = true;
+    // Clean up any remaining mobile parameters (except for Lemon8)
+    if (!hostname.includes('lemon8')) {
+      const mobileParams = ['?m=1', '&m=1'];
+      for (const param of mobileParams) {
+        if (convertedUrl.includes(param)) {
+          convertedUrl = convertedUrl.replace(param, '');
+          wasConverted = true;
+        }
       }
     }
     
