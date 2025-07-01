@@ -5,7 +5,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Header = () => {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
+
+  console.log('Header - User:', user, 'Loading:', loading);
 
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,11 +51,13 @@ const Header = () => {
                   className="flex items-center space-x-2 text-gray-600 hover:text-purple-500 transition-colors"
                 >
                   <User size={20} />
-                  <span className="hidden sm:inline">My Recipes</span>
+                  <span className="hidden sm:inline">
+                    {user.email?.split('@')[0] || 'My Recipes'}
+                  </span>
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors cursor-pointer"
+                  className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none"
                   title="Sign Out"
                   type="button"
                 >
