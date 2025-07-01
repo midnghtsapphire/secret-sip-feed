@@ -8,6 +8,7 @@ const FloatingAddButton = () => {
   const { user, loading } = useAuth();
 
   console.log('FloatingAddButton - User:', user, 'Loading:', loading);
+  console.log('FloatingAddButton - Should show button:', !loading && !!user);
 
   // Don't show the button if user is not authenticated or still loading
   if (loading || !user) {
@@ -17,8 +18,9 @@ const FloatingAddButton = () => {
   return (
     <Link
       to="/recipes"
-      className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer opacity-100"
+      className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
       aria-label="Add new recipe"
+      style={{ opacity: 1 }} // Force full opacity
     >
       <Plus size={24} className="drop-shadow-sm" />
     </Link>

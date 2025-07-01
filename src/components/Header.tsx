@@ -8,6 +8,7 @@ const Header = () => {
   const { user, loading, signOut } = useAuth();
 
   console.log('Header - User:', user, 'Loading:', loading);
+  console.log('Header - User email:', user?.email);
 
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -52,7 +53,7 @@ const Header = () => {
                 >
                   <User size={20} />
                   <span className="hidden sm:inline">
-                    {user.email?.split('@')[0] || 'My Recipes'}
+                    {user.email ? user.email.split('@')[0] : 'My Recipes'}
                   </span>
                 </Link>
                 <button
