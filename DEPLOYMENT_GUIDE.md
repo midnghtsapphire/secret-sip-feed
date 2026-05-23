@@ -41,7 +41,13 @@ Configure in Vercel project settings:
 
 ## 6) Deployment automation
 
-- Enable automatic production deployments from the main branch.
-- Enable preview deployments for pull requests.
-- Run `npm run test` and `npm run build` in CI before release promotion.
+- GitHub Actions workflow: `.github/workflows/vercel-deploy.yml`
+- Preview deployments run for pull requests.
+- Production deployment runs on push to `main` and `workflow_dispatch`.
+- CI gate runs `npm run test` and `npm run build` before deploy.
 
+### Required GitHub secrets
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`

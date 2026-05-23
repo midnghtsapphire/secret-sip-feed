@@ -15,7 +15,8 @@ Secret Sip Feed is a full-stack web app for discovering, importing, and managing
 
 - **Current public preview:** https://secret-sips.lovable.app
 - **Website in Test (Vercel):** `https://secret-sip-feed.vercel.app` (set during Vercel project onboarding)
-- **Deployment automation reference:** see `/DEPLOYMENT_GUIDE.md` for CI + Vercel steps
+- **Deployment automation:** `.github/workflows/vercel-deploy.yml` (preview + production)
+- **Deployment automation reference:** see `/DEPLOYMENT_GUIDE.md` for CI + Vercel setup steps
 
 ## Quick start
 
