@@ -1,82 +1,52 @@
-# Welcome to your Lovable project
+# Secret Sip Feed
 
-## Project info
+Secret Sip Feed is a full-stack web app for discovering, importing, and managing viral drink recipes. It combines a React + Vite frontend with Supabase auth, database storage, and serverless extraction functions.
 
-**URL**: https://lovable.dev/projects/0b06f470-9d43-4c68-9c00-768b35262889
+## What this repository does
 
-## How can I edit this code?
+- Public feed of curated drink recipes
+- User authentication (sign up / sign in)
+- Favorites management for signed-in users
+- Recipe management workflow (create/edit/delete/toggle visibility)
+- Social URL/image import flow for recipe extraction
+- Supabase-backed data model and edge functions
 
-There are several ways of editing your application.
+## Website in test
 
-**Use Lovable**
+- **Current public preview:** https://secret-sips.lovable.app
+- **Website in Test (Vercel):** `https://secret-sip-feed.vercel.app` (set during Vercel project onboarding)
+- **Deployment automation reference:** see `/DEPLOYMENT_GUIDE.md` for CI + Vercel steps
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0b06f470-9d43-4c68-9c00-768b35262889) and start prompting.
+## Quick start
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+npm ci
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Open `http://localhost:5173`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Baseline validation commands
 
-**Use GitHub Codespaces**
+```bash
+npm run test
+npm run build
+npm run lint
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Environment
 
-## What technologies are used for this project?
+Create `.env.local` with app-specific values if you override defaults:
 
-This project is built with:
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Revvel-standard docs
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/0b06f470-9d43-4c68-9c00-768b35262889) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
-
----
-
-## Test
-
-| Feature | Status |
-|---------|--------|
-| Feature | ✅ Ready |
-
+- [CHANGELOG.md](./CHANGELOG.md)
+- [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
+- [GO_TO_MARKET.md](./GO_TO_MARKET.md)
+- [BRAND_GUIDELINES.md](./BRAND_GUIDELINES.md)
+- [SECURITY.md](./SECURITY.md)
