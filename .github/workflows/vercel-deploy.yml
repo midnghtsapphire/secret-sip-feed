@@ -1,0 +1,53 @@
+name: Vercel Deploy (One Iteration)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Deploy to Vercel
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            VERCEL_ENV="preview"
+            PROD_FLAG=""
+          else
+            VERCEL_ENV="production"
+            PROD_FLAG="--prod"
+          fi
+
+          vercel pull --yes --environment="$VERCEL_ENV" --token="${{ secrets.VERCEL_TOKEN }}"
+          vercel build $PROD_FLAG --token="${{ secrets.VERCEL_TOKEN }}"
+          vercel deploy --prebuilt $PROD_FLAG --token="${{ secrets.VERCEL_TOKEN }}"
