@@ -49,3 +49,28 @@ Secret Sip Feed helps creators and consumers discover, save, and remix trending 
 - Favorites saved per active user
 - Paid conversion rate
 
+## Research engine
+
+- **Product signal sources:** TikTok/Instagram/Lemon8 trend monitoring, user search terms, save/favorite patterns.
+- **Operational signal sources:** Supabase auth funnel events, import success rates, recipe publish cadence.
+- **Decision cadence:** weekly trend synthesis and monthly roadmap reprioritization from observed conversion deltas.
+
+## Suggestions
+
+1. Add creator profile pages with trackable referral links to improve sponsored campaign attribution.
+2. Add premium “batch import + organizer” workflows for high-intent power users.
+3. Add ingredient-price overlays in recipe cards to strengthen affiliate conversion potential.
+
+## Assets inventory
+
+- Frontend app routes (`/src/pages` + `/src/components`) for browse, auth, favorites, recipe management, and import workflows.
+- Supabase migrations and edge functions (`/supabase/migrations`, `/supabase/functions`) powering data, auth, and extraction.
+- Deployment automation (`/.github/workflows/vercel-deploy.yml`) for preview and production Vercel releases.
+- Brand and operational docs (`README.md`, `DEPLOYMENT_GUIDE.md`, `BRAND_GUIDELINES.md`, `SECURITY.md`).
+
+## Artifacts inventory
+
+- Website in Test URL: `https://secret-sip-feed.vercel.app`
+- Baseline validation artifacts: `npm run test` (`scripts/test-baseline.js`) and `npm run build` (`scripts/build-baseline.js` + Vite build)
+- Market narrative artifact: this GTM document with value, goals, revenue model, and research-backed launch plan
+- Release history artifact: `CHANGELOG.md`
