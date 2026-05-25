@@ -1,5 +1,5 @@
 
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,36 +35,43 @@ const queryClient = new QueryClient({
 
 function App() {
   useSecurityHeaders();
-  useSecurityMonitoring();
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={
-              <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-              </div>
-            }>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/favorites" element={<Favorites />} />
-                <Route path="/recipes" element={<RecipeManager />} />
-                <Route path="/import" element={<ImportRecipes />} />
-                <Route path="/drink/:id" element={<DrinkDetail />} />
-                <Route path="/category/:category" element={<CategoryPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
+        <SecurityMonitoringProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={
+                <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+                </div>
+              }>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/favorites" element={<Favorites />} />
+                  <Route path="/recipes" element={<RecipeManager />} />
+                  <Route path="/import" element={<ImportRecipes />} />
+                  <Route path="/drink/:id" element={<DrinkDetail />} />
+                  <Route path="/category/:category" element={<CategoryPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </SecurityMonitoringProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+function SecurityMonitoringProvider({ children }: { children: ReactNode }) {
+  useSecurityMonitoring();
+
+  return <>{children}</>;
 }
 
 export default App;

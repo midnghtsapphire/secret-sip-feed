@@ -51,3 +51,4 @@ VITE_SUPABASE_ANON_KEY=
 - [GO_TO_MARKET.md](./GO_TO_MARKET.md)
 - [BRAND_GUIDELINES.md](./BRAND_GUIDELINES.md)
 - [SECURITY.md](./SECURITY.md)
+- GTM includes S2M-specific research engine, suggestions, assets inventory, and artifacts inventory sections.

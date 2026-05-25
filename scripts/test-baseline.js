@@ -33,4 +33,22 @@ if (!pkg?.scripts?.test || !pkg?.scripts?.build) {
   process.exit(1);
 }
 
+const goToMarketPath = path.join(root, "GO_TO_MARKET.md");
+const goToMarket = readFileSync(goToMarketPath, "utf8");
+const requiredSections = [
+  "## Research engine",
+  "## Suggestions",
+  "## Assets inventory",
+  "## Artifacts inventory",
+];
+
+const missingSections = requiredSections.filter((section) => !goToMarket.includes(section));
+if (missingSections.length > 0) {
+  console.error("GO_TO_MARKET.md is missing required revvel-standard sections:");
+  for (const section of missingSections) {
+    console.error(`- ${section}`);
+  }
+  process.exit(1);
+}
+
 console.log("Baseline validation passed.");
