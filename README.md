@@ -1,5 +1,9 @@
 # Secret Sip Feed
 
+
+<!-- AUTO-PACKAGE-BADGES:START -->
+
+<!-- AUTO-PACKAGE-BADGES:END -->
 Secret Sip Feed is a full-stack web app for discovering, importing, and managing viral drink recipes. It combines a React + Vite frontend with Supabase auth, database storage, and serverless extraction functions.
 
 ## What this repository does
